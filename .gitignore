@@ -1,0 +1,8 @@
+*.pdf
+*.png
+*.jpg
+*.odg
+
+/Setup
+
+arduino_secrets.h
