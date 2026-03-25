@@ -103,20 +103,26 @@ void loop() {
   printToTerminal(lux, temp);
 
   // handles changes in light / temperature. Will only send one notification per threshold change
-  if(lux < 25 && !light_notification_sent) {
-    sendNotification(topics.light, "Light Threshold Hit");
+  if(lux < 20 && !light_notification_sent) {
+    sendNotification(topics.light, "low");
     updateStatus(light_notification_sent, true);
-  } else if (lux > 25 && light_notification_sent) {
-    sendNotification(topics.light, "Light Stable");
+  } else if (lux >= 20 && light_notification_sent) {
+    sendNotification(topics.light, "stable");
     updateStatus(light_notification_sent, false);
+  } else if(lux < 0){
+    sendNotification(topics.light, "error");
+    updateStatus(light_notification_sent, true);
   }
 
   if(temp < 20 && !temp_notification_sent) {
-    sendNotification(topics.temp, "Temp Threshold Hit");
+    sendNotification(topics.temp, "low");
     updateStatus(temp_notification_sent, true);
-  } else if (temp > 20 && temp_notification_sent) {
-    sendNotification(topics.temp, "Temp Stable");
+  } else if (temp >= 20 && temp_notification_sent) {
+    sendNotification(topics.temp, "stable");
     updateStatus(temp_notification_sent, false);
+  } else if (isnan(temp)) {
+    sendNotification(topics.temp, "error");
+    updateStatus(temp_notification_sent, true);
   }
   
   delay(5000);
