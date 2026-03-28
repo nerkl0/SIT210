@@ -1,2 +1,12 @@
 *.pdf
+<<<<<<< HEAD
 *.png
+=======
+*.png
+*.jpg
+*.odg
+
+/Setup
+
+arduino_secrets.h
+>>>>>>> a77494e402488d83431ea7c121b70ccd2eb53bfa
