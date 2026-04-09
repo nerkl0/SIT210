@@ -1,0 +1,50 @@
+QMainWindow {
+    background-color: #fdf0e8;
+}
+
+QWidget {
+    background-color: #fdf0e8;
+}
+
+QPushButton {
+    font-size: 22px;
+    font-family: "Segoe UI", Verdana;
+    color: #7a4a2e;
+    background-color: #f9d4b6;
+    padding: 15px 25px;
+    border-radius: 30px;
+    border: 2px solid #f0bc96;
+    min-width: 150px;
+}
+
+QPushButton:hover {
+    background-color: #f5c49e;
+    border: 2px solid #e8a87c;
+}
+
+QPushButton[selected="true"] {
+    background-color: #e8a878;
+    border: 2px solid #d4885a;
+    color: #5a2e10;
+    border-radius: 30px;
+    padding-left: 17px;
+    padding-top: 17px;
+    padding-right: 23px;
+    padding-bottom: 23px;
+}
+
+QPushButton#exitButton {
+    background-color: transparent;
+    border: none;
+    color: #c0703e;
+    font-size: 20px;
+    font-weight: bold;
+    padding: 2px 8px;
+    min-width: 0px;
+}
+
+QPushButton#exitButton:hover {
+    background-color: #f0bc96;
+    border-radius: 6px;
+    color: #5a2e10;
+}
