@@ -3,7 +3,6 @@ import os
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, 
                              QVBoxLayout, QHBoxLayout, QGridLayout, 
                              QPushButton, QSlider) 
-from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import Qt
 from app import dimmer, cleanup, toggle
 
