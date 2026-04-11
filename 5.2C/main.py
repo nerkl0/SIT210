@@ -16,7 +16,7 @@ basedir = os.path.dirname(__file__)
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Let There Be Lights")
+        self.setWindowTitle("Let There Be Lights 2.0")
         self.setGeometry(0, 0, 700, 500)
         self.initUI()
 
