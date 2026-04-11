@@ -5,7 +5,9 @@
 *.png
 *.jpg
 *.odg
-
+node_modules/
+.env
+package-lock.json
 /Setup
 
 arduino_secrets.h
