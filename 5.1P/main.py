@@ -1,7 +1,8 @@
 import sys
 import os
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton
-from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import (QApplication, QMainWindow,
+                             QWidget,  QPushButton,
+                             QVBoxLayout, QHBoxLayout, QGridLayout)
 from PyQt6.QtCore import Qt
 from app import toggle_pin, cleanup
 
@@ -9,15 +10,14 @@ def load_stylesheet(app, filename):
     with open(filename, "r") as f:
         app.setStyleSheet(f.read())
 
+basedir = os.path.dirname(__file__)
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        basedir = os.path.dirname(__file__)
-        self.setWindowTitle("Let There Be Lights")
+        self.setWindowTitle("Let There Be Lights 2.0")
         self.setGeometry(0, 0, 700, 500)
         self.initUI()
-        icon_path = os.path.join(basedir, "logo.png")
-        self.setWindowIcon(QIcon(icon_path))
 
     def initUI(self):
         central_widget = QWidget()
@@ -28,15 +28,15 @@ class MainWindow(QMainWindow):
 
         top_bar = QHBoxLayout()
         top_bar.addStretch()
+        grid = QGridLayout()
+        grid.setSpacing(20)
+        grid.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # exit button layout
         exit_button = PushButton("✕", on_click=self.closeProgram)
         exit_button.setObjectName("exitButton")
         top_bar.addWidget(exit_button)
 
-        grid = QGridLayout()
-        grid.setSpacing(20)
-        grid.setAlignment(Qt.AlignmentFlag.AlignCenter)
         rooms = ["Living Room", "Bathroom", "Closet"]
         
         # creates room buttons within the center widget
