@@ -1,0 +1,20 @@
+{
+  "name": "4.2d",
+  "version": "1.0.0",
+  "main": "script.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js & npx open-cli http://localhost:3000"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "arduino-iot-js": "^0.9.7",
+    "dotenv": "^17.4.1",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "open-cli": "^9.0.0"
+  }
+}

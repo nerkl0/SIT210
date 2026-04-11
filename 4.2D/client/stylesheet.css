@@ -1,0 +1,143 @@
+body {
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    color: #16314e;
+    background: #eceaea;
+    margin: 0;
+}
+/* ======= GRID PROPERTIES ======= */
+.main {
+    display: flex;
+    justify-content: center;
+    padding: 48px 24px;
+}
+.dashboard {
+    width: 100%;
+    max-width: 900px;
+    background: white;
+    border-radius: 18px;
+    padding: 32px 36px 40px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.07);
+}
+.content {
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-start;
+    gap: 10px;
+}
+.switchgrid {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 1.5rem;
+}
+.all-row {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 160px;
+}
+
+/* ======= TEXT PROPERTIES ======= */
+.title {
+    font-size: 26px;
+    font-weight: 600;
+    margin: 0 0 28px 0;
+    color: #0F1F33;
+}
+.subtitle {
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    color: #6B7A90;
+    margin-bottom: 14px;
+}
+
+.room {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0;
+}
+.status {
+    font-size: 12px;
+    color: #7C8A9E;
+}
+
+/* ======= CARD PROPERTIES =======*/
+.card-row {
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+}
+.card {
+    background: white;
+    border: 2px solid #E3E8EE;
+    border-radius: 14px;
+    padding: 16px 18px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    min-width: 100px;
+}
+.card-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+}
+.card.on {
+    border-color: #E6D96A;
+    background: #FFFBE6;
+}
+.card.on .room {
+    color: #7A6A00;
+}
+
+.card.on .status {
+    color: #9A8800;
+}
+
+/* ======= LED PROPERTIES ======= */
+.led {
+    align-self: flex-end;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #D6DCE5;
+    transition: background 0.2s, box-shadow 0.2s;
+}
+.led.on {
+    background: #FFD84D;
+    box-shadow: 0 0 0 4px rgba(255, 216, 77, 0.35);
+}
+
+
+/* ======= BUTTON PROPERTIES ======= */
+.btn {
+    border-radius: 10px;
+    padding: 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    background: white;
+    border: 1px solid #E3E8EE;
+    cursor: pointer;
+    color: #2F3A4A;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.btn:hover {
+    background: #F6F8FB;
+}
+.btn-on {
+    border-color: #E6D96A;
+    color: #7A6A00;
+}
+.btn-on:hover {
+    background: #FFFBE6;
+}
+.btn-off {
+    border-color: #D7DEE7;
+    color: #5C6B7A;
+}
+.btn-off:hover {
+    background: #F1F4F8;
+}
