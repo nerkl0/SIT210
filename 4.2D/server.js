@@ -11,6 +11,7 @@ const { CLIENT_ID, CLIENT_SECRET, THING_ID } = process.env;
 
 let connected = false;
 
+// Connection handler to Arduino cloud
 async function connectToArduino() {
     await ArduinoIoTCloud.connect({
         clientId: CLIENT_ID,
@@ -26,6 +27,7 @@ async function connectToArduino() {
 
 connectToArduino();
 
+// API Endpoint for individual Thing handling. Passes name of Thing as argument to Cloud sendProperty(), along with the state udpate
 app.post('/api/rooms/:name', async (req, res) => {
     const { name } = req.params;
     const { value } = req.body;
@@ -37,6 +39,8 @@ app.post('/api/rooms/:name', async (req, res) => {
     }
 });
 
+// API Endpoint for all. Changes the value parameter for sendProperty based on the payload the endpont receives:
+// if argument true publish AllOn else publish AllOff
 app.post('/api/all', async (req, res) => {
     const { value } = req.body;
     try {
