@@ -44,7 +44,7 @@ void ISRtriggerLights(){
 }
 
 // ISR set to RISING. When motion detected, sets lastMotionTrigger variable to current board uptime.
-// Compare millis in loop to have motion sensor trigger on a countdown for automatic shut up 
+// Compare millis in loop to have motion sensor trigger on a countdown for automatic shut off 
 void ISRmotionDetected(){
   lastMotionTrigger = millis();  
 }
