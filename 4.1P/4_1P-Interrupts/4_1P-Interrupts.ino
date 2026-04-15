@@ -17,6 +17,7 @@ volatile byte ledState = LOW;
 
 const float LIGHT_THRESHOLD = 20;
 
+/* Variables for logging */
 unsigned long lastLog = 0;
 const unsigned int LOG_INTERVAL = 2000;
 float lastLux = -1;
@@ -31,7 +32,7 @@ void triggerLights(bool power){
   log(power ? "== Lights ON ==" : "== Lights OFF ==");
 }
 
-// Interrupt handler for switch motion. Toggles lights on/off if interrupt registered.
+// Interrupt handler for switch. Interupt set to CHANGE. Will update switchActive variable to inverse boolean when triggereds.
 // Debounce logic ignores a retrigger with DEBOUNCE_MS to prevent any potential flickering of the leds
 void ISRtriggerLights(){
   unsigned long now = millis();
@@ -40,9 +41,10 @@ void ISRtriggerLights(){
 
   switchActive = !switchActive;
   log(switchActive ? "== Switch ON ==" : "== Switch OFF ==");
-
 }
 
+// ISR set to RISING. When motion detected, sets lastMotionTrigger variable to current board uptime.
+// Compare millis in loop to have motion sensor trigger on a countdown for automatic shut up 
 void ISRmotionDetected(){
   lastMotionTrigger = millis();  
 }
@@ -85,24 +87,26 @@ void setup() {
 
   // warm up delay to give the PIR sensor time to adjust to the room conditions
   Serial.println("Sensor warming up...");
-  //delay(60000);
+  delay(60000);
   Serial.println("Warmup complete");
 }
 
 void loop() {
-  // won't let sensors override if the switch has been turrned on 
+  // Switch trumps all logic. If the switch is turned on, the lights will always be on.
+  // else continue -> let other environment variables handle LEDs 
   if (switchActive) {
-    if (ledState == LOW) {
+    if (ledState == LOW) 
       triggerLights(true);
-    }
     return;
   }
   
   float lux = lightSensor.readLightLevel(); 
+  // holds state for motion sensor based on the sensor timeout. Compares current board uptime against potential ISR trigger board uptime
   bool motionTimeout = (millis() - lastMotionTrigger) < MOTION_TIMEOUT;
-  unsigned long now = millis();
 
-  if (lux != lastLux || ledState != lastLedState || now - lastLog > LOG_INTERVAL) {
+  // logging will only update serial if state change detected
+  unsigned long now = millis();
+  if (lux != lastLux || motionTimeout != lastMotionState || ledState != lastLedState || now - lastLog > LOG_INTERVAL) {
     lastLux = lux;
     lastMotionState = motionTimeout;
     lastLedState = ledState;
@@ -118,9 +122,10 @@ void loop() {
     return;
   }
 
+  // Motion Sensor logic, if motionTimeout returns true, timer still running make sure lights on
+  // else make LEDs are off. 
   if (!motionTimeout && ledState == HIGH)
     triggerLights(false);
   else if (motionTimeout && ledState == LOW)
     triggerLights(true);
-
 }
