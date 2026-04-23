@@ -33,7 +33,7 @@ class MainWindow(QMainWindow):
         grid.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         # exit button layout
-        exit_button = QPushButton("â")
+        exit_button = QPushButton("\u00D7")
         exit_button.setObjectName("exitButton")
         exit_button.clicked.connect(self.closeProgram)
         top_bar.addWidget(exit_button)
