@@ -20,3 +20,4 @@ def dimmer(room, value):
 def cleanup():
     for led in leds.values():
         led.off()
+        led.close()
