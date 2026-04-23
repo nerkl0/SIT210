@@ -33,19 +33,24 @@ class MainWindow(QMainWindow):
         grid.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         # exit button layout
-        exit_button = QPushButton("✕")
+        exit_button = QPushButton("â")
         exit_button.setObjectName("exitButton")
         exit_button.clicked.connect(self.closeProgram)
         top_bar.addWidget(exit_button)
     
         rooms = ["Living Room", "Bathroom", "Closet"]
+        self.buttons = {}
 
-        # Assigns a button and a slider for each room 
+        # Assigns a button for each room 
         for i, room in enumerate(rooms):
-            slider = DimmerSlider(room, on_change=dimmer)
-            button = PushButton(room, slider=slider)
+            button = PushButton(room)
             grid.addWidget(button, 0, i)
-            grid.addWidget(slider, 1, i, Qt.AlignmentFlag.AlignHCenter)
+            self.buttons[room] = button
+
+        # create slider for living room and link to button
+        slider = DimmerSlider("Living Room", on_change=dimmer)
+        self.buttons["Living Room"].slider = slider
+        grid.addWidget(slider, 1, rooms.index("Living Room"), Qt.AlignmentFlag.AlignHCenter)
 
         vbox.addLayout(top_bar)
         vbox.addStretch()
