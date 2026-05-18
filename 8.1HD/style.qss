@@ -1,0 +1,158 @@
+QMainWindow {
+    background-color: #fdf0e8;
+}
+
+QWidget {
+    background-color: #fdf0e8;
+}
+
+QPushButton {
+    font-size: 22px;
+    font-family: "Segoe UI", Verdana;
+    color: #7a4a2e;
+    background-color: #f9d4b6;
+    padding: 15px 25px;
+    border-radius: 30px;
+    border: 2px solid #f0bc96;
+    min-width: 150px;
+}
+
+QPushButton:hover {
+    background-color: #f5c49e;
+    border: 2px solid #e8a87c;
+}
+
+QPushButton[selected="true"] {
+    background-color: #e8a878;
+    border: 2px solid #d4885a;
+    color: #5a2e10;
+    border-radius: 30px;
+    padding-left: 17px;
+    padding-top: 15px;
+    padding-right: 23px;
+    padding-bottom: 17px;
+}
+
+QPushButton#fanButton {
+    background-color: #6b5f58;
+    border: 2px solid #4e4540;
+    color: #f7f3f0;
+    border-radius: 35px;
+    font-size: 15px;
+    padding: 0px;
+}
+QPushButton#fanButton:hover {
+    background-color: #7d706a;
+    border: 2px solid #5e5550;
+}
+QPushButton#fanButton[selected="true"] {
+    background-color: #c87941;
+    border: 2px solid #a05a28;
+    color: #fff8f2;
+}
+
+QPushButton#exitButton {
+    background-color: transparent;
+    border: none;
+    color: #c0703e;
+    font-size: 20px;
+    font-weight: bold;
+    padding: 2px 8px;
+    min-width: 0px;
+}
+
+QPushButton#exitButton:hover {
+    background-color: #f0bc96;
+    border-radius: 6px;
+    color: #5a2e10;
+}
+
+
+/* Bluetooth properties */
+QLabel#blePopup {
+    background-color: #f9e8d8;
+    color: #c4a882;
+    border: 1.5px solid #e7c5a0;
+    border-radius: 12px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-family: "Segoe UI", Verdana;
+    font-weight: normal;
+}
+
+QLabel#bleError {
+    background-color: #f3c9cd;
+    color: #ffffff;
+    border: 1.5px solid #f0a9b0;
+    border-radius: 12px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-family: "Segoe UI", Verdana;
+    font-weight: normal;
+}
+
+/* Voice Command properties */
+QLabel#voicePopup {
+    background-color: #e8f0e8;
+    color: #4a6e4a;
+    border: 1.5px solid #b8d4b8;
+    border-radius: 12px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-family: "Segoe UI", Verdana;
+    font-weight: normal;
+}
+
+/* Bluetooth status indicator dot */
+QLabel#bleIndicator[connected="disconnected"]{
+    border-radius: 8px;
+    background-color: #c03a45;
+    border: 1.5px solid #610c1c;
+}
+QLabel#bleIndicator[connected="connected"] {
+    border-radius: 8px;
+    background-color: #4ecb4e;
+    border: 1.5px solid #10501a;
+}
+QLabel#bleIndicator[connected="lost"] {
+    border-radius: 8px;
+    background-color: #e6b800;
+    border: 1.5px solid #5a4000;
+}
+
+QPushButton#reconnectButton {
+    background-color: transparent;
+    border: none;
+    color: #c0703e;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 2px 8px;
+    min-width: 0px;
+}
+QPushButton#reconnectButton:hover {
+    background-color: #f0bc96;
+    border-radius: 6px;
+    color: #5a2e10;
+}
+QPushButton#reconnectButton:disabled {
+    color: #d4b8a8;
+}
+
+
+/* Voice Command Widget */
+QWidget#voiceWidget {
+    background-color: #e8f0e8;
+    border: 1.5px solid #b8d4b8;
+    border-radius: 16px;
+}
+QLabel#voiceIcon {
+    background-color: transparent;
+    font-size: 16px;
+}
+QLabel#voiceLabel {
+    background-color: transparent;
+    color: #4a6e4a;
+    font-size: 13px;
+    font-family: "Segoe UI", Verdana;
+    font-weight: normal;
+}
