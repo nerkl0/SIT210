@@ -51,7 +51,7 @@ class DimmerSlider(QSlider):
         self.setValue(255) # initial value 100%
         self.setEnabled(False) # initially disabled, will become active once LED is on
 
-        # if slider instance is enabled, dimmer function will be called, else is ignored
+        # if slider instance is enabled, returns the name and value of the dimmer, else is ignored
         if on_change:
             self.valueChanged.connect(lambda val: on_change(self.room_name, val) if self.isEnabled() else None)
 
