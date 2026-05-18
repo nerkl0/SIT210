@@ -1,6 +1,5 @@
 #include <Wire.h>
 #include <BH1750.h>
-#include <WiFiNINA.h> 
 #include "Bluetooth.h"
 
 BH1750 lightSensor;
