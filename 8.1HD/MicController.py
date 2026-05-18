@@ -5,12 +5,11 @@ import json, asyncio
 '''
     Vosk model used for word recognition. Must download externally and store locally
     vosk-model-small-en-us-0.1.5 is enough to cover the below set words
-    The argument passed in to Model is the path to Vosk model folder 
+    The argument passed in to Model is the path to Vosk model folder
 '''
 model = Model("VoskModel")
 
 PWM_INCREMENT = 20 # set increment for brighter / dimmer words
-
 
 # Each of the following arrays hold alternate descriptors of the action / room words
 ON_WORDS = ["on", "lights", "max"]
