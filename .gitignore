@@ -11,4 +11,5 @@ package-lock.json
 /Setup
 
 arduino_secrets.h
+env_secrets.js
 >>>>>>> a77494e402488d83431ea7c121b70ccd2eb53bfa
