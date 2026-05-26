@@ -1,7 +1,10 @@
 from PyQt6.QtWidgets import QLabel
 from PyQt6.QtCore import (Qt, QTimer)
 
-
+'''
+    Sits top right of the screen. Provides a 3 second timeout of the notification
+    Used primarly for bluetooth status notifications in this application
+'''
 class Notification(QLabel):
     def __init__(self, parent, text, style):
         super().__init__(parent)
