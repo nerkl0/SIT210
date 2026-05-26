@@ -16,7 +16,7 @@ const TOPICS = {
 let client = null;
 
 function mqttConnect(){
-    const url = `wss://${MQTT.HOST}:${MQTT.PORT}`/mqtt';
+    const url = `wss://${MQTT.HOST}:${MQTT.PORT}/mqtt`;
 
     client = mqtt.connect(url, {
         username: MQTT.USER,
