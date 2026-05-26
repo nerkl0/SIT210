@@ -1,4 +1,3 @@
-// ── STATE ──
 const MIN_TEMP = 30, MAX_TEMP = 42;
 let state = {
     targetTemp: 38,
@@ -11,7 +10,7 @@ let state = {
     unreadCount: 0,
 };
 
-// ── ELEMENTS ──
+// ELEMENTS
 const startBtn = document.getElementById('start-btn');
 const tempDisplay = document.getElementById('temp-target-display');
 const targetConfirm = document.getElementById('target-confirm');
@@ -26,7 +25,7 @@ const notifList = document.getElementById('notif-list');
 const notifEmpty = document.getElementById('notif-empty');
 const notifNew = document.getElementById('notif-new');
 
-// ── TABS ──
+// TABS
 function switchTab(name, btn) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -38,7 +37,7 @@ function switchTab(name, btn) {
     }
 }
 
-// ── NOTIFICATIONS ──
+// NOTIFICATIONS
 function addNotification(msg) {
     const n = { msg, time: new Date()};
     state.notifications.push(n);
@@ -72,7 +71,7 @@ document.getElementById('clear-btn').addEventListener('click', () => {
     updateNotifications();
 });
 
-  // ── TEMPERATURE ──
+// TEMPERATURE
 document.getElementById('btn-up').addEventListener('click', () => {
     if (state.targetTemp < MAX_TEMP) {
         state.targetTemp++;
@@ -92,17 +91,24 @@ function updateTemp(){
     tempDisplay.style.color = state.targetTemp > 42 ? 'var(--danger)':'var(--accent)';
 }
 
-  // ── START / STOP ──
+// COMMENCE BUTTON
 startBtn.addEventListener('click', () => {
     if (!state.running) {
+        const start_pub = mqttStartBath(state.targetTemp);
+        if (!start_pub) {
+            addNotification('Can not communicate with Bath, please check connection');
+            return;
+        }
+
         state.running = true;
         state.bathStatus = 'FILLING';
         startBtn.className = 'start-btn running';
         startBtn.textContent = 'Stop Bath';
-        addNotification('Bath has started filling — target ' + state.targetTemp + '°C');
+        addNotification(`Commencing filling the tub. Target temp ${state.targetTemp}°C`);
         updateBathStatus();
     } else {
-        stopBath('User stopped the bath');
+        mqttStopBath();
+        stopBath('Cancelled request due to error');
     }
 });
 
@@ -146,3 +152,4 @@ updateBathStatus();
 updateTemp();
 showProgress();
 updateNotifications();
+mqttConnect();
