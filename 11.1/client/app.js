@@ -1,3 +1,5 @@
+import { mqttConnect } from "./server.js"
+
 const MIN_TEMP = 30, MAX_TEMP = 42;
 let state = {
     targetTemp: 38,
@@ -26,7 +28,7 @@ const notifEmpty = document.getElementById('notif-empty');
 const notifNew = document.getElementById('notif-new');
 
 // TABS
-function switchTab(name, btn) {
+export function switchTab(name, btn) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
@@ -133,7 +135,7 @@ function updateBathStatus() {
 }
 
 // ── APP CONNECTION STATUS ──
-function setAppConnected(connected) {
+export function setAppConnected(connected) {
     state.appConnected = connected;
     dotApp.className = 'status-dot ' + (connected ? 'connected' : 'disconnected');
     valApp.textContent = connected ? 'Connected' : 'Disconnected';

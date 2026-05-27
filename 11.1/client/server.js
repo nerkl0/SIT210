@@ -1,27 +1,28 @@
-const mqtt = require("mqtt")
-import MQTT from "env_secrets.js"
+import * as mqttModule from './node_modules/mqtt/dist/mqtt.esm.js';
+const { connect } = mqttModule.default;
+import { HOST, PORT, USER, PASS, CLIENTID } from "./env_secrets.js";
+import { setAppConnected } from "./app.js";
 
 const TOPICS = {
   subscribe: {
-    state:    'smartbath/status/state',
-    temp:     'smartbath/status/temp',
-    progress: 'smartbath/status/progress',
+    state:'smartbath/status/state',
+    temp: 'smartbath/status/temp',
+    progress:'smartbath/status/progress',
   },
   publish: {
-    start: 'smartbath/command/start',
-    stop:  'smartbath/command/stop',
+    start:'smartbath/command/start',
+    stop: 'smartbath/command/stop',
   }
 };
 
 let client = null;
 
-function mqttConnect(){
-    const url = `wss://${MQTT.HOST}:${MQTT.PORT}/mqtt`;
-
-    client = mqtt.connect(url, {
-        username: MQTT.USER,
-        password: MQTT.PASS,
-        clientId: MQTT.CLIENTID,
+export function mqttConnect(){
+    const url = `wss://${HOST}:${PORT}/mqtt`;
+    client = connect(url, {
+        username: USER,
+        password: PASS,
+        clientId: CLIENTID,
         clean: true,
         reconnectPeriod: 3000,
         connectTimeout: 10000,
