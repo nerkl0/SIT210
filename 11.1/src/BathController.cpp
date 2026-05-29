@@ -14,17 +14,17 @@ static const float MAX_TEMP_DIFF = 5.0;
 static float target_temp = 0;
 static const int TEMP_BAND = 1;
 
-static bool want_start = false;
-static bool want_stop  = false;
+static bool start_requested = false;
+static bool stop_requested  = false;
 static uint32_t fill_start_ms = 0;
 
 void request_start(float target) {
   target_temp = target;
-  want_start = true;
+  start_requested = true;
 }
 
 void request_stop() {
-  want_stop = true;
+  stop_requested = true;
 }
 
 static BathState temperature_state(float temp) {
@@ -37,18 +37,18 @@ static BathState temperature_state(float temp) {
 }
 
 BathState evaluate_state(float temp, uint32_t now, bool sensor_ok) {
-  if (want_stop) {
-    want_stop = false;
+  if (stop_requested) {
+    stop_requested = false;
     fill_start_ms = 0;
     return IDLE;
   }
 
-  if (want_start && bath_state == IDLE) {
-    want_start = false;
+  if (start_requested && bath_state == IDLE) {
+    start_requested = false;
     fill_start_ms = now;
     return FILLING;
   }
-  want_start = false;
+  start_requested = false;
 
   if (bath_state == IDLE) 
     return IDLE;
