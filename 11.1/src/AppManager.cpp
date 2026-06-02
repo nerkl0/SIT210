@@ -47,7 +47,7 @@ void subscribe_all(){
   mqtt.subscribe(topics.size);
 }
 
-void onMqttMessageReceived(char* topic, byte* payload, unsigned int length){
+void onMqttMsgReceived(char* topic, byte* payload, unsigned int length){
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
@@ -121,7 +121,7 @@ void check_connection(){
   }
 }
 
-bool connection_timed_out(uint32_t now){
+bool connection_timeout(uint32_t now){
   if (disconnected_since_ms == 0) return false;
   return (now - disconnected_since_ms) >= MAX_DISCONNECT_MS;
 }
@@ -132,7 +132,7 @@ void mqtt_begin(){
   mqtt.setServer(MQTT_BROKER, MQTT_PORT);
   mqtt.setKeepAlive(15);
   mqtt.setSocketTimeout(2);
-  mqtt.setCallback(onMqttMessageReceived);
+  mqtt.setCallback(onMqttMsgReceived);
   mqtt_connect();
 }
 

@@ -5,7 +5,7 @@ const int COLD_ENB = 6, COLD_IN3 = 5, COLD_IN4 = 4;
 
 int speed = 225;
 
-void pumpController_begin() {
+void pumpController_begin(){
     pinMode(HOT_ENA, OUTPUT);
     pinMode(HOT_IN1, OUTPUT);
     pinMode(HOT_IN2, OUTPUT);

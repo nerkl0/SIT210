@@ -14,9 +14,13 @@ static const float MAX_TEMP_DIFF = 5.0;
 static float target_temp = 0;
 static const int TEMP_BAND = 1;
 
-static bool start_requested = false;
-static bool stop_requested  = false;
+static bool volatile start_requested = false;
+static bool volatile stop_requested  = false;
 static uint32_t fill_start_ms = 0;
+
+void bathController_begin(){
+  pumpController_begin();
+}
 
 void request_start(float target) {
   target_temp = target;
@@ -56,7 +60,7 @@ BathState evaluate_state(float temp, uint32_t now, bool sensor_ok) {
   if (!sensor_ok) 
     return SENSOR_FAULT;
 
-  if (connection_timed_out(now)) 
+  if (connection_timeout(now)) 
     return LOST_CONNECTION;
 
   if ((now - fill_start_ms) >= max_fill_ms) {
@@ -127,7 +131,7 @@ void set_bath_size(float litres) {
 }
 void set_target_temperature(float t){
   target_temp = t;
-  Serial.print("[BATH] target temp: "); Serial.println(target_temp);
+  Serial.print("BATH target temp: "); Serial.println(target_temp);
 }
 void set_bath_state(BathState st){ 
   bath_state = st; 

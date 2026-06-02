@@ -5,7 +5,6 @@
 #include "AppManager.h"
 #include "Config.h"
 #include "Display.h"
-#include "PumpController.h"
 #include "TempSensor.h"
 
 static float bathTemp = 0;
@@ -13,8 +12,6 @@ static float bathTemp = 0;
 SemaphoreHandle_t pumpMutex;
 SemaphoreHandle_t i2cMutex;
 QueueHandle_t tempQueue;
-#define PUBLISH_PERIOD_MS 2000
-uint32_t last_publish_ms; 
 
 #define HIGH_PERIOD_MS 250
 #define NORMAL_PERIOD_MS 250
@@ -31,7 +28,19 @@ uint32_t last_publish_ms;
 #define PRIO_NORMAL 1
 #define PRIO_GENERAL 1
 
-static const char* setDisplayMessage(){
+// Timers
+#define PUBLISH_PERIOD_MS 2000
+#define SENSOR_READ_MS 750
+
+static void updateBuzzer(BathState s){
+  if (s == HARD_WARNING || s == SENSOR_FAULT)
+    tone(BUZZER_PIN, BEEP_FREQ, BEEP_TIME);
+  else
+    noTone(BUZZER_PIN);
+}
+
+
+static const char* setOLEDMsg(){
   BathState s = get_bath_state();
   switch(s){
     case HARD_WARNING:  
@@ -45,7 +54,7 @@ static const char* setDisplayMessage(){
   }
 }
 
-static void apply_alerts(BathState s){
+static void applyAlerts(BathState s){
   bool red = false, yellow = false;
   switch (s){
     case HARD_WARNING:
@@ -63,13 +72,12 @@ static void apply_alerts(BathState s){
   digitalWrite(LED_YELLOW, yellow ? HIGH : LOW);
 }
 
-
-static void on_state_change(BathState from, BathState to){
+static void onStateChange(BathState from, BathState to){
   Serial.print("State: "); Serial.print(stringify_bathState(from));
   Serial.print(" -> "); Serial.println(stringify_bathState(to));
 
   publish_status(to, bathTemp, get_fill_progress());
-  apply_alerts(to);
+  applyAlerts(to);
 
   switch (to) {
     case IDLE:
@@ -77,20 +85,16 @@ static void on_state_change(BathState from, BathState to){
         publish_notification("FILL_DONE");
       break;
     case HARD_WARNING:
-      hardAlert();
       publish_notification("TEMP_HARD");
       break;
     case SENSOR_FAULT:
-      hardAlert();
       publish_notification("SENS_FAULT");
       break;
     case SOFT_WARNING:
       publish_notification("TEMP_SOFT");
-      digitalWrite(LED_YELLOW, HIGH);
       break;
     case LOST_CONNECTION:
       publish_notification("CONN_LOST");
-      digitalWrite(LED_YELLOW, HIGH);
       break;
     default: break;
   }
@@ -100,7 +104,7 @@ static void on_state_change(BathState from, BathState to){
 // Refresh the OLED. Guards the I2C bus.
 static void refreshDisplay(){
   display_setTemp(bathTemp);
-  display_setMessage(setDisplayMessage());
+  display_setMessage(setOLEDMsg());
   if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE){
     update_display();
     xSemaphoreGive(i2cMutex);
@@ -108,35 +112,26 @@ static void refreshDisplay(){
 }
 
 // Apply the state-driven pump transition under the pump mutex.
-static void handleStateTransition(BathState next, BathState curr){
+static void controlPumps(BathState next, BathState curr){
   if (xSemaphoreTake(pumpMutex, portMAX_DELAY) == pdTRUE){
     drive_pumps(next, curr);
     xSemaphoreGive(pumpMutex);
   }
 }
 
-static void clearAlerts(){
-  digitalWrite(LED_RED, LOW);
-  digitalWrite(LED_YELLOW, LOW);
-  noTone(BUZZER_PIN);
-  if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE){
-    display_clearAlert();
-    update_display();
-    xSemaphoreGive(i2cMutex);
-  }
-}
-
-static void hardAlert(){
-  digitalWrite(LED_RED, HIGH);
-  tone(BUZZER_PIN, 1000, 500);
-}
-
 // High priority task
 static void highPriorityTask(void *pv){
+  static float temp = 0; 
+  static uint32_t last_temp_read = millis() - SENSOR_READ_MS; // Set so read is on first loop
+
   for (;;){
     uint32_t now = millis();
+    // temp sensor polls every 750ms to avoid stale reads
+    if (now - last_temp_read >= SENSOR_READ_MS) {
+        last_temp_read = now;
+        temp = tempSensor_read();
+    }
 
-    float temp = tempSensor_read();
     float t_sensorState = tempSensor_state();
     xQueueOverwrite(tempQueue, &temp);
     bathTemp = temp;
@@ -145,18 +140,21 @@ static void highPriorityTask(void *pv){
     BathState next = evaluate_state(temp, now, t_sensorState == OK);
 
     if (next != current){
-      on_state_change(current, next);
+      onStateChange(current, next);
       set_bath_state(next);
     }
 
-    handleStateTransition(next, current);
+    controlPumps(next, current);
+    updateBuzzer(next);
 
     vTaskDelay(pdMS_TO_TICKS(HIGH_PERIOD_MS));
   }
 }
 
-
+// retain an absolute schedule so that high prio doesn't starve updates (particularly for update display)
 static void normalPriorityTask(void *pv){
+  static uint32_t last_publish_ms = 0;
+
   TickType_t lastWake = xTaskGetTickCount();
   for (;;){
     float t;
@@ -191,10 +189,9 @@ static void pin_begin(){
 
 void setup(){
   Serial.begin(9600);
-
+  bathController_begin();
   tempSensor_begin();
   display_begin();
-  pumpController_begin();
   pin_begin();
   mqtt_begin();
 

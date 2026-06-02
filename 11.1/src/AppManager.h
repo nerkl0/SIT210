@@ -8,7 +8,7 @@ void mqtt_begin();
 void mqtt_loop();
 void publish_status(BathState state, float temp, int progress);
 void publish_notification(const char* msg);
-bool connection_timed_out(uint32_t now);
+bool connection_timeout(uint32_t now);
 void publish_notification(const char* msg);
 
 #endif
