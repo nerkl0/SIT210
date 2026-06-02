@@ -56,15 +56,29 @@
       </div>
     </div>
 
-    <!-- PROGRESS  -->
-    <div class="progress-card">
-      <div class="progress-wrap">
+    <!-- BATH SIZE + PROGRESS -->
+    <div class="two-col-row">
+
+      <div class="temp-card">
+        <div class="card-title">Bath Size</div>
+        <div class="temp-display">
+          <div class="temp-value" id="size-display">10</div>
+          <div class="temp-unit">L</div>
+        </div>
+        <div class="size-btn-row">
+          <button class="temp-btn" id="btn-size-down">–</button>
+          <button class="temp-btn" id="btn-size-up">+</button>
+        </div>
+      </div>
+
+      <div class="progress-card">
         <div class="card-title">Fill Progress</div>
         <div class="progress-percent" id="progress-percent">0%</div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+        </div>
       </div>
-      <div class="progress-track">
-        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
-      </div>
+
     </div>
 
     <!-- START BUTTON -->
@@ -93,11 +107,11 @@
 
 <!-- NAVIGATION -->
 <nav>
-  <button class="nav-btn active" data-tab="home" onclick="switchTab('home', this)">
+  <button class="nav-btn active" data-tab="home">
     <img class="nav-icon" src="./assets/home.svg" alt="Home">
     Home
   </button>
-  <button class="nav-btn" data-tab="notif" onclick="switchTab('notif', this)">
+  <button class="nav-btn" data-tab="notif">
     <img class="nav-icon" src="./assets/bell.svg" alt="Notifications">
     <span class="nav-new" id="notif-new"></span>
     Notifications
