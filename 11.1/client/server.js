@@ -1,28 +1,29 @@
 import * as mqttModule from './node_modules/mqtt/dist/mqtt.esm.js';
 const { connect } = mqttModule.default;
 import { HOST, PORT, USER, PASS, CLIENTID } from "./env_secrets.js";
-import { setAppConnected } from "./app.js";
 
-const TOPICS = {
+export const TOPICS = {
   subscribe: {
-    state:'smartbath/status/state',
-    temp: 'smartbath/status/temp',
-    progress:'smartbath/status/progress',
+    status:'smartbath/status',
+    connected:'smartbath/status/connected'
   },
   publish: {
     start:'smartbath/command/start',
-    stop: 'smartbath/command/stop',
+    stop:'smartbath/command/stop',
+    temp:'smartbath/command/temp',
+    size:'smartbath/command/size'
   }
 };
 
 let client = null;
 
-export function mqttConnect(){
+export function mqttConnect(handlers = {}){
+    const { onConnect, onDisconnect, onMessage } = handlers;
     const url = `wss://${HOST}:${PORT}/mqtt`;
     client = connect(url, {
         username: USER,
         password: PASS,
-        clientId: CLIENTID,
+        clientId: `${CLIENTID}-${Math.random().toString(16).slice(2, 8)}`,
         clean: true,
         reconnectPeriod: 3000,
         connectTimeout: 10000,
@@ -30,64 +31,50 @@ export function mqttConnect(){
 
     client.on('connect', () => {
         console.log("MQTT connected");
-        setAppConnected(true);
-        client.subscribe(Object.values(TOPICS.subscribe))
+        client.subscribe(Object.values(TOPICS.subscribe));
+        onConnect?.();
     });
 
-    client.on('reconnect', () => {
-        console.log("MQTT Attempting Reconnection");
-        setAppConnected(false);
-    });
+    client.on('reconnect', () => console.log("MQTT Attempting Reconnection"));
 
-    client.on('error', (err)=>{
+    client.on('error', (err) => {
         console.log(`MQTT Error: ${err.message}`);
-        setAppConnected(false);
+        onDisconnect?.();
     });
 
     client.on('offline', () => {
         console.log("MQTT Offline");
-        setAppConnected(false);
+        onDisconnect?.();
     });
 
-    client.on('message', (topic, payload)=>{
-        try{ 
-            const data = JSON.parse(payload.toString());
-            handlePayload(topic, data);
+    client.on('message', (topic, payload) => {
+        try {
+            onMessage?.(topic, payload.toString());
         } catch (err) {
-            console.log('MQTT Error reading messaing', topic, payload.toString());
+            console.log('MQTT Error reading message', topic, payload.toString());
+            console.log(err);
         }
     });
-}
-
-function handlePayload(topic, data){
-    switch(topic){
-        case TOPICS.subscribe.state:
-            updateBathStatus(data.state); 
-            state.running  = (data.state === 'FILLING' || data.state === 'SOFT_WARNING' || data.state === 'HARD_WARNING');
-            break; 
-        case TOPICS.subscribe.temp: 
-            state.currentTemp = data.temp;
-            currentTemp.textContent = data.temp.toFixed(1) + '°C';
-            break; 
-        case TOPICS.subscribe.progress:
-            state.progress = data.progress; 
-            showProgress(); 
-            break;
-    }
 }
 
 function mqttPublish(topic, payload){
     if (!client || !client.connected){
         console.log("MQTT Broker not connected");
-        return false; 
+        return false;
     }
-    client.publish(topic, JSON.stringify(payload), { qos: 1});
-    return true; 
+    client.publish(topic, JSON.stringify(payload), { qos: 1 });
+    return true;
 }
 
-function mqttStartBath(targetTemp){
-    return mqttPublish(TOPICS.publish.start, {target: targetTemp});
+export function mqttStartBath(targetTemp){ 
+    return mqttPublish(TOPICS.publish.start, targetTemp); 
 }
-function mqttStopBath(){
-    return mqttPublish(TOPICS.publish.stop, {});
+export function mqttStopBath(){ 
+    return mqttPublish(TOPICS.publish.stop, {}); 
+}
+export function mqttAdjustTemp(adjTemp){ 
+    return mqttPublish(TOPICS.publish.temp, adjTemp); 
+}
+export function mqttSetBathSize(litres){ 
+    return mqttPublish(TOPICS.publish.size, litres); 
 }
