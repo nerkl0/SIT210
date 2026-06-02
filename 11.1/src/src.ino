@@ -32,13 +32,19 @@ QueueHandle_t tempQueue;
 #define PUBLISH_PERIOD_MS 2000
 #define SENSOR_READ_MS 750
 
+typedef struct {
+  BathState from;
+  BathState to;
+  float temp;
+  int progress;
+} NotifMsg;
+
 static void updateBuzzer(BathState s){
   if (s == HARD_WARNING || s == SENSOR_FAULT)
     tone(BUZZER_PIN, BEEP_FREQ, BEEP_TIME);
   else
     noTone(BUZZER_PIN);
 }
-
 
 static const char* setOLEDMsg(){
   BathState s = get_bath_state();
@@ -65,41 +71,11 @@ static void applyAlerts(BathState s){
     case LOST_CONNECTION:
       yellow = true;
       break;
-    default:
-      break;
+    default: break;
   }
   digitalWrite(LED_RED, red ? HIGH : LOW);
   digitalWrite(LED_YELLOW, yellow ? HIGH : LOW);
 }
-
-static void onStateChange(BathState from, BathState to){
-  Serial.print("State: "); Serial.print(stringify_bathState(from));
-  Serial.print(" -> "); Serial.println(stringify_bathState(to));
-
-  publish_status(to, bathTemp, get_fill_progress());
-  applyAlerts(to);
-
-  switch (to) {
-    case IDLE:
-      if (from == FILLING || from == SOFT_WARNING || from == HARD_WARNING)
-        publish_notification("FILL_DONE");
-      break;
-    case HARD_WARNING:
-      publish_notification("TEMP_HARD");
-      break;
-    case SENSOR_FAULT:
-      publish_notification("SENS_FAULT");
-      break;
-    case SOFT_WARNING:
-      publish_notification("TEMP_SOFT");
-      break;
-    case LOST_CONNECTION:
-      publish_notification("CONN_LOST");
-      break;
-    default: break;
-  }
-}
-
 
 // Refresh the OLED. Guards the I2C bus.
 static void refreshDisplay(){
@@ -112,17 +88,17 @@ static void refreshDisplay(){
 }
 
 // Apply the state-driven pump transition under the pump mutex.
-static void controlPumps(BathState next, BathState curr){
+static void controlPumps(BathState next, float temp){
   if (xSemaphoreTake(pumpMutex, portMAX_DELAY) == pdTRUE){
-    drive_pumps(next, curr);
+    drive_pumps(next, temp);
     xSemaphoreGive(pumpMutex);
   }
 }
 
 // High priority task
 static void highPriorityTask(void *pv){
-  static float temp = 0; 
-  static uint32_t last_temp_read = millis() - SENSOR_READ_MS; // Set so read is on first loop
+  static float temp = tempSensor_read();
+  uint32_t last_temp_read = millis();
 
   for (;;){
     uint32_t now = millis();
@@ -132,7 +108,7 @@ static void highPriorityTask(void *pv){
         temp = tempSensor_read();
     }
 
-    float t_sensorState = tempSensor_state();
+    TempSensorState t_sensorState = tempSensor_state();
     xQueueOverwrite(tempQueue, &temp);
     bathTemp = temp;
 
@@ -140,12 +116,15 @@ static void highPriorityTask(void *pv){
     BathState next = evaluate_state(temp, now, t_sensorState == OK);
 
     if (next != current){
-      onStateChange(current, next);
       set_bath_state(next);
+      Serial.print("high prio next != current: "); Serial.println(next);
+      Serial.print("Next: "); Serial.println(next);
+      Serial.print("Current: "); Serial.println(current);
+      Serial.println();
     }
 
-    controlPumps(next, current);
     updateBuzzer(next);
+    controlPumps(next, temp);
 
     vTaskDelay(pdMS_TO_TICKS(HIGH_PERIOD_MS));
   }
@@ -163,10 +142,11 @@ static void normalPriorityTask(void *pv){
 
     BathState s = get_bath_state();
     uint32_t now = millis();
-    if ((s == FILLING || s == SOFT_WARNING || s == HARD_WARNING) && (now - last_publish_ms >= PUBLISH_PERIOD_MS)){
+    if (now - last_publish_ms >= PUBLISH_PERIOD_MS){
       last_publish_ms = now;
       publish_status(s, bathTemp, get_fill_progress());
     }
+
     refreshDisplay();
     taskYIELD();
     vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(NORMAL_PERIOD_MS));

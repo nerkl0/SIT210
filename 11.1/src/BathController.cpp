@@ -75,25 +75,36 @@ BathState evaluate_state(float temp, uint32_t now, bool sensor_ok) {
 // Actuator: drive pumps for a given state. No state writes.
 void drive_pumps(BathState st, float curr_temp) {
   float err = curr_temp - target_temp;
+  Serial.println();
+  Serial.println("======= In drive_pumps =======");
+  Serial.print("Bath state: "); Serial.println(stringify_bathState(bath_state));
+  Serial.print("Target temp: "); Serial.println(target_temp);
+  Serial.println(); 
+  Serial.print("Current temp: "); Serial.println(curr_temp);
+  Serial.print("In drive_pumps. current-target=");Serial.println(err);
   switch (st) {
     case HARD_WARNING:
     case SOFT_WARNING:
       if (err > 0) { 
         stop_pump(HOT);
         run_pump(COLD);
-        }
+        Serial.println("Stopping hot pump");
+      }
       else { 
         stop_pump(COLD); 
         run_pump(HOT);  
+        Serial.println("Stopping cold pump");
       }
       break;
     case FILLING:
       run_both_pumps();
+      Serial.println("Running both pumps");
       break;
     case IDLE:
     case LOST_CONNECTION:
     case SENSOR_FAULT:
       stop_both_pumps();
+      Serial.println("Stopping both pumps");
       break;
   }
 }
@@ -106,8 +117,10 @@ int get_fill_progress() {
     uint32_t start = fill_start_ms;
     uint32_t span  = max_fill_ms;
     if (start == 0 || span == 0) return 0;
+
     uint32_t elapsed = millis() - start;
-    int pct = (int)((float)elapsed / span * 100.0);
+    int pct = elapsed / span * 100.0;
+    
     return pct > 100 ? 100 : pct;
 }
 const char* stringify_bathState(BathState st){
@@ -126,8 +139,6 @@ const char* stringify_bathState(BathState st){
 // setters
 void set_bath_size(float litres) {
   max_fill_ms = (uint32_t)((litres / PUMP_FLOW_RATE_LPM) * 60.0 * 1000.0);
-  Serial.print("BATH bath size: "); Serial.print(litres);
-  Serial.print("L -> max_fill_ms="); Serial.println(max_fill_ms);
 }
 void set_target_temperature(float t){
   target_temp = t;

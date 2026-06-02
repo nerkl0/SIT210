@@ -9,34 +9,26 @@ static PubSubClient mqtt(wifiClient);
 static SemaphoreHandle_t mqttMutex = NULL;
 
 const uint32_t RECONNECT_INTERVAL_MS = 5000;
+const uint32_t MAX_DISCONNECT_MS = 30000;
 static uint32_t disconnected_since_ms = 0;
 static uint32_t last_reconnect_ms = 0;
-const uint32_t MAX_DISCONNECT_MS = 30000;
-
-static float prev_temp = 0;
 
 typedef struct {
-  const char* state;
-  const char* temp;
-  const char* progress;
-  const char* connected;
+  const char* status;     // consolidated JSON: state, temp, progress
+  const char* connected;  // retained, driven by LWT
   const char* start;
   const char* stop;
   const char* adjust_temp;
   const char* size;
-  const char* notification;
 } Topic;
 
 const Topic topics = {
-  .state = "smartbath/status/state",
-  .temp = "smartbath/status/temp",
-  .progress = "smartbath/status/progress",
+  .status = "smartbath/status",
   .connected = "smartbath/status/connected",
   .start = "smartbath/command/start",
   .stop = "smartbath/command/stop",
   .adjust_temp = "smartbath/command/temp",
-  .size = "smartbath/command/size",
-  .notification = "smartbath/status/notification"
+  .size = "smartbath/command/size"
 };
 
 void subscribe_all(){
@@ -93,7 +85,7 @@ void mqtt_connect(){
       subscribe_all();
     } else {
       Serial.print("Broker connection could not be established: "); Serial.println(mqtt.state());
-      delay(3000);
+      delay(1500);
     }
   }
 }
@@ -105,11 +97,13 @@ void check_connection(){
     disconnected_since_ms = 0;
     return;
   }
-  if (disconnected_since_ms == 0) disconnected_since_ms = now;
+
+  if (disconnected_since_ms == 0) 
+    disconnected_since_ms = now;
 
   if (now - last_reconnect_ms < RECONNECT_INTERVAL_MS) return;
+  
   last_reconnect_ms = now;
-
   if (WiFi.status() != WL_CONNECTED){
     WiFi.begin(WIFI_SSID, WIFI_PASS);
     return;
@@ -149,33 +143,13 @@ void publish_status(BathState state, float temp, int progress){
   if (mqttMutex == NULL) return;
   if (xSemaphoreTake(mqttMutex, portMAX_DELAY) != pdTRUE) return;
 
-  if(!mqtt.publish(topics.state, stringify_bathState(state)))
-    Serial.println("Error publishing state");
+  char payload[96];
+  snprintf(payload, sizeof(payload),
+           "{\"state\":\"%s\",\"temp\":%.1f,\"progress\":%d}",
+           stringify_bathState(state), temp, progress);
 
-  if (abs(temp - prev_temp) > 0.8){
-    char tbuf[16];
-    snprintf(tbuf, sizeof(tbuf), "%s", String(temp, 1).c_str());
-    if(!mqtt.publish(topics.temp, tbuf))
-      Serial.println("Error publishing temp");
-    else
-      prev_temp = temp;
-  }
-
-  char pbuf[8];
-  snprintf(pbuf, sizeof(pbuf), "%d", progress);
-  if(!mqtt.publish(topics.progress, pbuf))
-    Serial.println("Error publishing progress");
+  if (!mqtt.publish(topics.status, payload))
+    Serial.println("Error publishing status");
 
   xSemaphoreGive(mqttMutex);
-}
-
-void publish_notification(const char* msg){
-  if (mqttMutex == NULL) return;
-  if (xSemaphoreTake(mqttMutex, portMAX_DELAY) == pdTRUE){
-    if(!mqtt.publish(topics.notification, msg)){
-      Serial.print("Error publishing notification, state=");
-      Serial.println(mqtt.state());
-    }
-    xSemaphoreGive(mqttMutex);
-  }
 }
