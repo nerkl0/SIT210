@@ -2,25 +2,27 @@
 #include "PumpController.h"
 #include "AppManager.h"
 
-#define MAX_TEMPERATURE 42
-#define PUMP_FLOW_RATE 10.0
-
-static uint32_t max_fill_ms = 12000;
+#define MAX_TEMPERATURE 42 // Max safe temperature
+#define PUMP_FLOW_RATE 10.0 // litres per min on each pump, used to estimate fill time
+static uint32_t max_fill_ms = 12000; // fill duration 
+static uint32_t fill_start_ms = 0; // timer for when filling began
 
 static BathState bath_state = IDLE;
 static const float MAX_TEMP_DIFF = 5.0;
 static float target_temp = 0;
 static const int TEMP_BAND = 1;
 
+// Written from MQTT callback, read in evaluate_state()
 static bool volatile start_requested = false;
 static bool volatile stop_requested  = false;
 static bool volatile buzzer_is_silenced = false;
-static uint32_t fill_start_ms = 0;
 
+// Bath state machine holds all pump controller logic. Setup pins for the pumps
 void bathController_begin(){
   pumpController_begin();
 }
 
+// Application has requested start  
 void request_start(float target) {
   target_temp = target;
   start_requested = true;
@@ -40,11 +42,13 @@ bool buzzer_silenced() {
 }
 
 static BathState temperature_state(float temp) {
-  float t = temp - target_temp;
-  if (abs(t) > MAX_TEMP_DIFF || temp > MAX_TEMPERATURE)
-    return t > 0 ? HARD_WARNING : SOFT_WARNING;
-  if (abs(t) >= TEMP_BAND)
+  float diff = temp - target_temp;
+  if (abs(diff) > MAX_TEMP_DIFF || temp > MAX_TEMPERATURE)
+    return diff > 0 ? HARD_WARNING : SOFT_WARNING;
+
+  if (abs(diff) >= TEMP_BAND)
     return SOFT_WARNING;
+  
   return FILLING;
 }
 
@@ -74,7 +78,6 @@ BathState evaluate_state(float temp, uint32_t now, bool sensor_ok) {
     return LOST_CONNECTION;
 
   if ((now - fill_start_ms) >= max_fill_ms) {
-    Serial.println("Evaluate -> IDLE Bath full");
     fill_start_ms = 0;
     return IDLE;
   }
@@ -85,13 +88,6 @@ BathState evaluate_state(float temp, uint32_t now, bool sensor_ok) {
 // Actuator: drive pumps for a given state. No state writes.
 void drive_pumps(BathState st, float curr_temp) {
   float err = curr_temp - target_temp;
-  Serial.println();
-  Serial.println("======= In drive_pumps =======");
-  Serial.print("Bath state: "); Serial.println(stringify_bathState(bath_state));
-  Serial.print("Target temp: "); Serial.println(target_temp);
-  Serial.println(); 
-  Serial.print("Current temp: "); Serial.println(curr_temp);
-  Serial.print("In drive_pumps. current-target=");Serial.println(err);
   switch (st) {
     case HARD_WARNING:
     case SOFT_WARNING:
@@ -99,26 +95,16 @@ void drive_pumps(BathState st, float curr_temp) {
         stop_both_pumps(); 
         break; 
       } 
-      if (err > 0) { 
-        stop_pump(HOT);
-        run_pump(COLD);
-        Serial.println("Hot pump stopped");
-      }
-      else { 
-        stop_pump(COLD); 
-        run_pump(HOT);  
-        Serial.println("Cold pump stopped");
-      }
+      stop_pump(err > 0 ? HOT : COLD);
+      run_pump(err > 0 ? COLD : HOT);
       break;
     case FILLING:
       run_both_pumps();
-      Serial.println("Both pumps running");
       break;
     case IDLE:
     case LOST_CONNECTION:
     case SENSOR_FAULT:
       stop_both_pumps();
-      Serial.println("Both pumps stopped");
       break;
   }
 }
@@ -156,7 +142,6 @@ void set_bath_size(float litres) {
 }
 void set_target_temperature(float t){
   target_temp = t;
-  Serial.print("BATH target temp: "); Serial.println(target_temp);
 }
 void set_bath_state(BathState st){ 
   bath_state = st; 
