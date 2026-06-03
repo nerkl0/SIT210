@@ -7,8 +7,6 @@
 #include "Display.h"
 #include "TempSensor.h"
 
-static float bathTemp = 0;
-
 SemaphoreHandle_t pumpMutex;
 SemaphoreHandle_t i2cMutex;
 QueueHandle_t tempQueue;
@@ -81,8 +79,8 @@ static void applyAlerts(BathState s){
 }
 
 // Refresh the OLED. Guards the I2C bus.
-static void refreshDisplay(){
-  display_setTemp(bathTemp);
+static void refreshDisplay(float temp){
+  display_setTemp(temp);
   display_setMessage(setOLEDMsg());
   if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE){
     update_display();
@@ -113,7 +111,6 @@ static void highPriorityTask(void *pv){
 
     TempSensorState t_sensorState = tempSensor_state();
     xQueueOverwrite(tempQueue, &temp);
-    bathTemp = temp;
 
     BathState current = get_bath_state();
     BathState next = evaluate_state(temp, now, t_sensorState == OK);
@@ -137,21 +134,21 @@ static void highPriorityTask(void *pv){
 // retain an absolute schedule so that high prio doesn't starve updates (particularly for update display)
 static void normalPriorityTask(void *pv){
   static uint32_t last_publish_ms = 0;
+  float temp = 0; 
 
   TickType_t lastWake = xTaskGetTickCount();
   for (;;){
     float t;
-    if (xQueuePeek(tempQueue, &t, 0) == pdTRUE)
-      bathTemp = t;
+    xQueuePeek(tempQueue, &temp, 0);
 
     BathState s = get_bath_state();
     uint32_t now = millis();
     if (now - last_publish_ms >= PUBLISH_PERIOD_MS){
       last_publish_ms = now;
-      publish_status(s, bathTemp, get_fill_progress());
+      publish_status(s, temp, get_fill_progress());
     }
 
-    refreshDisplay();
+    refreshDisplay(temp);
     taskYIELD();
     vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(NORMAL_PERIOD_MS));
   }
