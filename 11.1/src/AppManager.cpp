@@ -35,8 +35,9 @@ const Topic topics = {
   .silence = "smartbath/command/silence"
 };
 
+// Is called on connection of broker 
 void subscribe_all(){
-  mqtt.publish(topics.connected, "True", true);
+  mqtt.publish(topics.connected, "True", true); // "True": Payload, true: retainer (broker keeps topic so newly-connected subscriber gets last known publish)
   mqtt.subscribe(topics.start);
   mqtt.subscribe(topics.stop);
   mqtt.subscribe(topics.adjust_temp);
@@ -44,15 +45,16 @@ void subscribe_all(){
   mqtt.subscribe(topics.silence);
 }
 
+/*
+  MQTT message callback function. Copies the payload into a buffer publishes via respective topics
+  In order: 
+    - start: assign target temperature and start filling 
+    - stop: stop filling
+    - adjust_temp: bath is filling and user has adjusted temp
+    - size: size of bath literage has changed
+    - silence: HARD_WARNING or SENSOR_FAULT state, user has requested buzzer to be silent  
+*/
 void onMqttMsgReceived(char* topic, byte* payload, unsigned int length){
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
-  for (int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
-  }
-  Serial.println();
-
   if (strcmp(topic, topics.start) == 0){
     char buf[32];
     snprintf(buf, sizeof(buf), "%.*s", (int)length, payload);
@@ -71,33 +73,13 @@ void onMqttMsgReceived(char* topic, byte* payload, unsigned int length){
     snprintf(buf, sizeof(buf), "%.*s", (int)length, payload);
     set_bath_size(atof(buf));
   }
-  else if (strcmp(topic, topics.silence) == 0){
-    request_silence();
+  else if (strcmp(topic, topics.silence) == 0){ 
+    request_silence(); // Buzzer silenced
   }
 }
 
-// Connect functions
-void wifi_connect(){
-  Serial.println("Attempting wifi connection..");
-  while (WiFi.begin(WIFI_SSID, WIFI_PASS) != WL_CONNECTED){
-    delay(1000);
-  }
-  Serial.println("Wifi connected");
-}
-
-void mqtt_connect(){
-  while(!mqtt.connected()){
-    Serial.println("Attempting to connect to broker..");
-    if (mqtt.connect(MQTT_CLIENT, MQTT_USER, MQTT_PASS, topics.connected, 1, true, "False")){
-      Serial.println("Broker connected");
-      subscribe_all();
-    } else {
-      Serial.print("Broker connection could not be established: "); Serial.println(mqtt.state());
-      delay(1500);
-    }
-  }
-}
-
+// Non-blocking reconnect check. Tracks how long the system has been down (disconnected_since_ms)
+// Retries attempt once per RECONNECT_INTERVAL_MS. WiFi is recovered before MQTT.
 void check_connection(){
   uint32_t now = millis();
 
@@ -106,9 +88,11 @@ void check_connection(){
     return;
   }
 
+  // If just disconnected set start disconnection period
   if (disconnected_since_ms == 0) 
     disconnected_since_ms = now;
 
+  // Avoids spamming reconnection attempts, returns while within reconnect interval
   if (now - last_reconnect_ms < RECONNECT_INTERVAL_MS) return;
   
   last_reconnect_ms = now;
@@ -123,9 +107,52 @@ void check_connection(){
   }
 }
 
+// Tracks connection timeout for bath. If true and bath is filling, the bath pumps stop
 bool connection_timeout(uint32_t now){
-  if (disconnected_since_ms == 0) return false;
+  if (disconnected_since_ms == 0) 
+    return false;
   return (now - disconnected_since_ms) >= MAX_DISCONNECT_MS;
+}
+
+// Publishes the current bath status as JSON object ({state, temp, progress}) via topics.status.
+// Called from normal-priority task; takes mqttMutex so it doesn't collide with mqtt_loop()'s broker access
+void publish_status(BathState state, float temp, int progress){
+  if (mqttMutex == NULL) return;
+  if (xSemaphoreTake(mqttMutex, portMAX_DELAY) != pdTRUE) return;
+
+  char payload[96];
+  snprintf(payload, sizeof(payload), "{\"state\":\"%s\",\"temp\":%.1f,\"progress\":%d}",
+           stringify_bathState(state), temp, progress);
+
+  if (!mqtt.publish(topics.status, payload))
+    Serial.println("Error publishing status");
+
+  xSemaphoreGive(mqttMutex);
+}
+
+//  ===== Connect functions =======
+void wifi_connect(){
+  while (WiFi.begin(WIFI_SSID, WIFI_PASS) != WL_CONNECTED){
+    delay(1000);
+  }
+}
+
+/* 
+  Connect to the broker (blocking function). 
+  mqtt.connect args: 
+  - topics.connected: registers the LWT 
+  - 1: will QoS
+  - true: will retained 
+  - "False": will payload, broker publishes this if system drops
+*/
+void mqtt_connect(){
+  while(!mqtt.connected()){
+    if (mqtt.connect(MQTT_CLIENT, MQTT_USER, MQTT_PASS, topics.connected, 1, true, "False")){
+      subscribe_all();
+    } else {
+      delay(1500);
+    }
+  }
 }
 
 void mqtt_begin(){
@@ -145,18 +172,4 @@ void mqtt_loop(){
     mqtt.loop();
     xSemaphoreGive(mqttMutex);
   }
-}
-
-void publish_status(BathState state, float temp, int progress){
-  if (mqttMutex == NULL) return;
-  if (xSemaphoreTake(mqttMutex, portMAX_DELAY) != pdTRUE) return;
-
-  char payload[96];
-  snprintf(payload, sizeof(payload), "{\"state\":\"%s\",\"temp\":%.1f,\"progress\":%d}",
-           stringify_bathState(state), temp, progress);
-
-  if (!mqtt.publish(topics.status, payload))
-    Serial.println("Error publishing status");
-
-  xSemaphoreGive(mqttMutex);
 }
