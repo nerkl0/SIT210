@@ -3,9 +3,7 @@
 #include "AppManager.h"
 
 #define MAX_TEMPERATURE 42
-#define LEVEL_HARD_CUTOFF 95
-#define SENSOR_GRACE_MS 5000
-#define PUMP_FLOW_RATE_LPM 10.0
+#define PUMP_FLOW_RATE 10.0
 
 static uint32_t max_fill_ms = 12000;
 
@@ -154,7 +152,7 @@ const char* stringify_bathState(BathState st){
 
 // setters
 void set_bath_size(float litres) {
-  max_fill_ms = (uint32_t)((litres / PUMP_FLOW_RATE_LPM) * 60.0 * 1000.0);
+  max_fill_ms = (uint32_t)((litres / PUMP_FLOW_RATE) * 60.0 * 1000.0);
 }
 void set_target_temperature(float t){
   target_temp = t;

@@ -14,8 +14,10 @@ static uint32_t disconnected_since_ms = 0;
 static uint32_t last_reconnect_ms = 0;
 
 typedef struct {
-  const char* status;     // consolidated JSON: state, temp, progress
-  const char* connected;  // retained, driven by LWT
+  // publish topics
+  const char* status;  // state, temp, progress
+  const char* connected;
+  // subscribe topics
   const char* start;
   const char* stop;
   const char* adjust_temp;
@@ -150,8 +152,7 @@ void publish_status(BathState state, float temp, int progress){
   if (xSemaphoreTake(mqttMutex, portMAX_DELAY) != pdTRUE) return;
 
   char payload[96];
-  snprintf(payload, sizeof(payload),
-           "{\"state\":\"%s\",\"temp\":%.1f,\"progress\":%d}",
+  snprintf(payload, sizeof(payload), "{\"state\":\"%s\",\"temp\":%.1f,\"progress\":%d}",
            stringify_bathState(state), temp, progress);
 
   if (!mqtt.publish(topics.status, payload))

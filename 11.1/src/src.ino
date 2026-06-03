@@ -15,8 +15,7 @@ QueueHandle_t tempQueue;
 #define NORMAL_PERIOD_MS 250
 #define GENERAL_PERIOD_MS 100
 
-// Stack sizes are in WORDS (4 bytes on SAMD21). Tune against
-// uxTaskGetStackHighWaterMark during bring-up before trusting these.
+// Stack sizes are in WORDS (4 bytes on SAMD21)
 #define STACK_HIGH 256
 #define STACK_NORMAL 256
 #define STACK_GENERAL 512 
@@ -24,18 +23,11 @@ QueueHandle_t tempQueue;
 // Task priorities
 #define PRIO_HIGH 3
 #define PRIO_NORMAL 1
-#define PRIO_GENERAL 1
+#define PRIO_GENERAL 1 // For MQTT connect
 
 // Timers
 #define PUBLISH_PERIOD_MS 2000
 #define SENSOR_READ_MS 750
-
-typedef struct {
-  BathState from;
-  BathState to;
-  float temp;
-  int progress;
-} NotifMsg;
 
 static void updateBuzzer(BathState s){
   if ((s == HARD_WARNING || s == SENSOR_FAULT) && !buzzer_silenced())
@@ -138,7 +130,6 @@ static void normalPriorityTask(void *pv){
 
   TickType_t lastWake = xTaskGetTickCount();
   for (;;){
-    float t;
     xQueuePeek(tempQueue, &temp, 0);
 
     BathState s = get_bath_state();

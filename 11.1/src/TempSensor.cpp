@@ -19,7 +19,7 @@ float tempSensor_read() {
     float temp = sensors.getTempCByIndex(0);
     sensors.requestTemperatures();
 
-    if (temp == DEVICE_DISCONNECTED_C || temp <= -100.0) {
+    if (temp == DEVICE_DISCONNECTED_C) {
         if (bad_read_start_ms == 0) 
             bad_read_start_ms = millis();
         else if ((millis() - bad_read_start_ms) >= change_state_timeout) 
