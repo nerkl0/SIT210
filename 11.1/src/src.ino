@@ -40,7 +40,7 @@ typedef struct {
 } NotifMsg;
 
 static void updateBuzzer(BathState s){
-  if (s == HARD_WARNING || s == SENSOR_FAULT)
+  if ((s == HARD_WARNING || s == SENSOR_FAULT) && !buzzer_silenced())
     tone(BUZZER_PIN, BEEP_FREQ, BEEP_TIME);
   else
     noTone(BUZZER_PIN);
@@ -53,6 +53,8 @@ static const char* setOLEDMsg(){
       return "! WARNING !";
     case SOFT_WARNING:  
       return "Adjusting Temp";
+    case SENSOR_FAULT: 
+      return "SENSOR FAULT";
     default:
       static char str[32];
       snprintf(str, sizeof(str), "Bath: %s", stringify_bathState(s));
@@ -73,6 +75,7 @@ static void applyAlerts(BathState s){
       break;
     default: break;
   }
+
   digitalWrite(LED_RED, red ? HIGH : LOW);
   digitalWrite(LED_YELLOW, yellow ? HIGH : LOW);
 }
