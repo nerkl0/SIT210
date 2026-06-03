@@ -114,14 +114,14 @@ BathState get_bath_state(){
   return bath_state; 
 }
 int get_fill_progress() {
-    uint32_t start = fill_start_ms;
-    uint32_t span  = max_fill_ms;
-    if (start == 0 || span == 0) return 0;
+  uint32_t start = fill_start_ms;
+  uint32_t span  = max_fill_ms;
+  if (start == 0 || span == 0) return 0;
 
-    uint32_t elapsed = millis() - start;
-    int pct = elapsed / span * 100.0;
-    
-    return pct > 100 ? 100 : pct;
+  uint32_t elapsed = millis() - start;
+  int pct = (int)((float)elapsed / span * 100.0);
+  
+  return pct > 100 ? 100 : pct;
 }
 const char* stringify_bathState(BathState st){
   switch (st) {
