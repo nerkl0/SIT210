@@ -19,18 +19,19 @@
     <!-- STATUS  -->
     <div class="status-menu">
       <div class="status-card">
-        <div class="status-dot" id="dot-app"></div>
+        <div class="status-ind" id="app-ind"></div>
         <div class="status-info">
           <div class="status-title">App</div>
           <div class="status-val" id="val-app">Disconnected</div>
         </div>
       </div>
       <div class="status-card">
-        <div class="status-dot" id="dot-bath"></div>
+        <div class="status-ind" id="bath-ind"></div>
         <div class="status-info">
           <div class="status-title">Bath</div>
           <div class="status-val" id="val-bath">Idle</div>
         </div>
+        <button class="silence-btn" id="silence-btn">Silence</button>
       </div>
     </div>
 
@@ -56,7 +57,7 @@
       </div>
     </div>
 
-    <!-- BATH SIZE + PROGRESS -->
+    <!-- BATH SIZE, PROGRESS, ADD MORE WATER -->
     <div class="two-col-row">
 
       <div class="temp-card">
@@ -77,6 +78,7 @@
         <div class="progress-track">
           <div class="progress-fill" id="progress-fill" style="width:0%"></div>
         </div>
+        <button class="add-water-btn" id="add-water-btn">Add more water</button>
       </div>
 
     </div>

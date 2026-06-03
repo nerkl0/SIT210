@@ -11,7 +11,8 @@ export const TOPICS = {
     start:'smartbath/command/start',
     stop:'smartbath/command/stop',
     temp:'smartbath/command/temp',
-    size:'smartbath/command/size'
+    size:'smartbath/command/size',
+    silence:'smartbath/command/silence'
   }
 };
 
@@ -57,6 +58,7 @@ export function mqttConnect(handlers = {}){
     });
 }
 
+// Main publish function that handles JSON conversion and publishing to MQTT
 function mqttPublish(topic, payload){
     if (!client || !client.connected){
         console.log("MQTT Broker not connected");
@@ -66,6 +68,7 @@ function mqttPublish(topic, payload){
     return true;
 }
 
+// Different types of publish functions 
 export function mqttStartBath(targetTemp){ 
     return mqttPublish(TOPICS.publish.start, targetTemp); 
 }
@@ -77,4 +80,7 @@ export function mqttAdjustTemp(adjTemp){
 }
 export function mqttSetBathSize(litres){ 
     return mqttPublish(TOPICS.publish.size, litres); 
+}
+export function mqttSilenceWarnings(){
+    return mqttPublish(TOPICS.publish.silence, {});
 }

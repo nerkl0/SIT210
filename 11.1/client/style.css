@@ -134,7 +134,7 @@ nav {
     align-items: center;
     gap: 10px;
 }
-.status-dot {
+.status-ind {
     width: 10px; 
     height: 10px;
     border-radius: 50%;
@@ -142,16 +142,16 @@ nav {
     background: var(--text-light);
     transition: background 0.4s;
 }
-.status-dot.connected { 
+.status-ind.connected { 
     background: var(--ok);
 }
-.status-dot.disconnected { 
+.status-ind.disconnected { 
     background: var(--danger); 
 }
-.status-dot.filling { 
+.status-ind.filling { 
     background: var(--accent); 
 }
-.status-dot.warning { 
+.status-ind.warning { 
     background: var(--warn); 
 }
 .status-info { 
@@ -295,6 +295,24 @@ nav {
     background: var(--accent);
     transition: width 1s ease;
 }
+.add-water-btn {
+    margin-top: 14px;
+    width: 100%;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    color: var(--text-coloured);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.add-water-btn:active {
+    background: var(--accent-light);
+    border-color: var(--accent);
+    color: var(--accent);
+}
 
 /*    START BUTTON     */
 .start-wrap {
@@ -321,6 +339,34 @@ nav {
     background: var(--accent-light);
     color: var(--accent);
     border: 1px solid var(--accent);
+}
+.start-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/*   SILENCE WARNINGS BUTTON   */
+.silence-btn {
+    display: none;
+    margin-left: auto;
+    flex-shrink: 0;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--warn);
+    background: var(--warn-light);
+    color: var(--warn);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.silence-btn.visible {
+    display: block;
+}
+.silence-btn:active {
+    background: color-mix(in srgb, var(--warn) 22%, transparent);
 }
 
 /*   NOTIFICATIONS TAB     */
