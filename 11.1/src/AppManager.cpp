@@ -20,6 +20,7 @@ typedef struct {
   const char* stop;
   const char* adjust_temp;
   const char* size;
+  const char* silence;
 } Topic;
 
 const Topic topics = {
@@ -28,7 +29,8 @@ const Topic topics = {
   .start = "smartbath/command/start",
   .stop = "smartbath/command/stop",
   .adjust_temp = "smartbath/command/temp",
-  .size = "smartbath/command/size"
+  .size = "smartbath/command/size",
+  .silence = "smartbath/command/silence"
 };
 
 void subscribe_all(){
@@ -37,6 +39,7 @@ void subscribe_all(){
   mqtt.subscribe(topics.stop);
   mqtt.subscribe(topics.adjust_temp);
   mqtt.subscribe(topics.size);
+  mqtt.subscribe(topics.silence);
 }
 
 void onMqttMsgReceived(char* topic, byte* payload, unsigned int length){
@@ -65,6 +68,9 @@ void onMqttMsgReceived(char* topic, byte* payload, unsigned int length){
     char buf[32];
     snprintf(buf, sizeof(buf), "%.*s", (int)length, payload);
     set_bath_size(atof(buf));
+  }
+  else if (strcmp(topic, topics.silence) == 0){
+    request_silence();
   }
 }
 
