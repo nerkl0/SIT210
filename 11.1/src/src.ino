@@ -122,7 +122,8 @@ static void highPriorityTask(void *pv){
       Serial.print("Current: "); Serial.println(current);
       Serial.println();
     }
-
+    
+    applyAlerts(next);
     updateBuzzer(next);
     controlPumps(next, temp);
 
