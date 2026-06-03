@@ -29,6 +29,8 @@ QueueHandle_t tempQueue;
 #define PUBLISH_PERIOD_MS 2000
 #define SENSOR_READ_MS 750
 
+// Buzzer will tone on HARD_WARNING and SENSOR_FAULT if the user hasn't 
+// silenced the tone from the frontend.
 static void updateBuzzer(BathState s){
   if ((s == HARD_WARNING || s == SENSOR_FAULT) && !buzzer_silenced())
     tone(BUZZER_PIN, BEEP_FREQ, BEEP_TIME);
@@ -36,6 +38,8 @@ static void updateBuzzer(BathState s){
     noTone(BUZZER_PIN);
 }
 
+// Configures the messaged displayed on the top line of the OLED screen dependent on state
+// Base case is Bath: [State]
 static const char* setOLEDMsg(){
   BathState s = get_bath_state();
   switch(s){
@@ -52,9 +56,12 @@ static const char* setOLEDMsg(){
   }
 }
 
-static void applyAlerts(BathState s){
+// Sets the LEDs ON/OFF dependent on state. 
+// Yellow for LOST_CONNECTION and SOFT_WARNING. Red for HARD_WARNING and SENSOR_FAULT
+// Any other state will keep the LEDs switched OFF
+static void applyAlerts(BathState st){
   bool red = false, yellow = false;
-  switch (s){
+  switch (st){
     case HARD_WARNING:
     case SENSOR_FAULT:
       red = true;
@@ -70,7 +77,11 @@ static void applyAlerts(BathState s){
   digitalWrite(LED_YELLOW, yellow ? HIGH : LOW);
 }
 
-// Refresh the OLED. Guards the I2C bus.
+/*
+  Refresh the OLED. Builds and sets the message.
+  I2C mutex waits for portMAX_DELAY, then runs the block only if the pdTRUE lock was acquired
+  temp argument is the current temperature. Can be a stale read if the sensor returns a bad reading 
+*/
 static void refreshDisplay(float temp){
   display_setTemp(temp);
   display_setMessage(setOLEDMsg());
@@ -80,59 +91,62 @@ static void refreshDisplay(float temp){
   }
 }
 
-// Apply the state-driven pump transition under the pump mutex.
-static void controlPumps(BathState next, float temp){
+// Apply pump transition guarding them with under the pump mutex.
+// st / temp is current state of st / temp
+static void controlPumps(BathState st, float temp){
   if (xSemaphoreTake(pumpMutex, portMAX_DELAY) == pdTRUE){
-    drive_pumps(next, temp);
+    drive_pumps(st, temp);
     xSemaphoreGive(pumpMutex);
   }
 }
 
-// High priority task
+// High priority task: reads the sensor, evaluates the bath state calling evaluate_state()
+// Updates the alerts/buzzer/pumps. Runs every HIGH_PERIOD_MS.
 static void highPriorityTask(void *pv){
   static float temp = tempSensor_read();
   uint32_t last_temp_read = millis();
 
   for (;;){
     uint32_t now = millis();
-    // temp sensor polls every 750ms to avoid stale reads
+    // DS18B20 temp sensor polls every 750ms. This block avoids unecessarily polling for stale reads
     if (now - last_temp_read >= SENSOR_READ_MS) {
         last_temp_read = now;
         temp = tempSensor_read();
     }
 
     TempSensorState t_sensorState = tempSensor_state();
-    xQueueOverwrite(tempQueue, &temp);
+    xQueueOverwrite(tempQueue, &temp);  // add to xqueue latest temp for the normal-priority task
 
-    BathState current = get_bath_state();
-    BathState next = evaluate_state(temp, now, t_sensorState == OK);
-
-    if (next != current){
-      set_bath_state(next);
-      Serial.print("high prio next != current: "); Serial.println(next);
-      Serial.print("Next: "); Serial.println(next);
-      Serial.print("Current: "); Serial.println(current);
-      Serial.println();
-    }
+    // Run the state machine and apply to state
+    BathState state = evaluate_state(temp, now, t_sensorState == OK);
+    set_bath_state(state);
     
-    applyAlerts(next);
-    updateBuzzer(next);
-    controlPumps(next, temp);
+    // Action system based on the set state
+    applyAlerts(state);
+    updateBuzzer(state);
+    controlPumps(state, temp);
 
     vTaskDelay(pdMS_TO_TICKS(HIGH_PERIOD_MS));
   }
 }
 
-// retain an absolute schedule so that high prio doesn't starve updates (particularly for update display)
+/*
+  Normal priority task: peeks the latest temp, publishes status over MQTT on a fixed interval,
+  Refreshes the OLED every NORMAL_PERIOD_MS. 
+  Uses vTaskDelayUntil for an absolute schedule so the high-prio task doesn't starve the display/publish tasks
+*/
 static void normalPriorityTask(void *pv){
   static uint32_t last_publish_ms = 0;
   float temp = 0; 
 
   TickType_t lastWake = xTaskGetTickCount();
   for (;;){
+    // non-blocking read of latest temp (timeout 0). Leaves temp unchanged if queue empty
     xQueuePeek(tempQueue, &temp, 0);
 
     BathState s = get_bath_state();
+
+    // Control MQTT publishes to PUBLISH_PERIOD_MS so it's not spamming the broker
     uint32_t now = millis();
     if (now - last_publish_ms >= PUBLISH_PERIOD_MS){
       last_publish_ms = now;
@@ -140,12 +154,12 @@ static void normalPriorityTask(void *pv){
     }
 
     refreshDisplay(temp);
-    taskYIELD();
-    vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(NORMAL_PERIOD_MS));
+    vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(NORMAL_PERIOD_MS)); // absolute schedule
   }
 }
 
-//  General tasks are lower on the priority list
+// General/background task: services the MQTT client (keepalives, incoming
+// messages, reconnects) every GENERAL_PERIOD_MS.
 static void generalTask(void *pv){
   for (;;){
     mqtt_loop();
@@ -153,6 +167,7 @@ static void generalTask(void *pv){
   }
 }
 
+// Pin setup
 static void pin_begin(){
   pinMode(LED_RED, OUTPUT);
   pinMode(LED_YELLOW, OUTPUT);
@@ -172,6 +187,7 @@ void setup(){
   i2cMutex = xSemaphoreCreateMutex();
   tempQueue = xQueueCreate(1, sizeof(float));
 
+  // If any mutex isn't allocated sufficient space, system halts
   if (pumpMutex == NULL || i2cMutex == NULL || tempQueue == NULL){
     Serial.println("RTOS primitive allocation failed - halting");
     while (1) {}
