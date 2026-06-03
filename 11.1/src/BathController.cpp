@@ -16,6 +16,7 @@ static const int TEMP_BAND = 1;
 
 static bool volatile start_requested = false;
 static bool volatile stop_requested  = false;
+static bool volatile buzzer_is_silenced = false;
 static uint32_t fill_start_ms = 0;
 
 void bathController_begin(){
@@ -25,10 +26,19 @@ void bathController_begin(){
 void request_start(float target) {
   target_temp = target;
   start_requested = true;
+  buzzer_is_silenced = false;  // new bath starts un-silenced
 }
 
 void request_stop() {
   stop_requested = true;
+}
+
+void request_silence() {
+  buzzer_is_silenced = true;
+}
+
+bool buzzer_silenced() {
+  return buzzer_is_silenced;
 }
 
 static BathState temperature_state(float temp) {
@@ -44,7 +54,7 @@ BathState evaluate_state(float temp, uint32_t now, bool sensor_ok) {
   if (stop_requested) {
     stop_requested = false;
     fill_start_ms = 0;
-    return IDLE;
+    return temp >= target_temp + MAX_TEMP_DIFF ? HARD_WARNING : IDLE; ;
   }
 
   if (start_requested && bath_state == IDLE) {
@@ -57,8 +67,10 @@ BathState evaluate_state(float temp, uint32_t now, bool sensor_ok) {
   if (bath_state == IDLE) 
     return IDLE;
 
-  if (!sensor_ok) 
+  if (!sensor_ok) {
+    fill_start_ms = 0;
     return SENSOR_FAULT;
+  }
 
   if (connection_timeout(now)) 
     return LOST_CONNECTION;
@@ -85,26 +97,30 @@ void drive_pumps(BathState st, float curr_temp) {
   switch (st) {
     case HARD_WARNING:
     case SOFT_WARNING:
+      if (fill_start_ms == 0) { 
+        stop_both_pumps(); 
+        break; 
+      } 
       if (err > 0) { 
         stop_pump(HOT);
         run_pump(COLD);
-        Serial.println("Stopping hot pump");
+        Serial.println("Hot pump stopped");
       }
       else { 
         stop_pump(COLD); 
         run_pump(HOT);  
-        Serial.println("Stopping cold pump");
+        Serial.println("Cold pump stopped");
       }
       break;
     case FILLING:
       run_both_pumps();
-      Serial.println("Running both pumps");
+      Serial.println("Both pumps running");
       break;
     case IDLE:
     case LOST_CONNECTION:
     case SENSOR_FAULT:
       stop_both_pumps();
-      Serial.println("Stopping both pumps");
+      Serial.println("Both pumps stopped");
       break;
   }
 }
