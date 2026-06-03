@@ -77,13 +77,16 @@ function convertNotification(st) {
     const target = state.targetTemp;
     switch (st) {
         case 'IDLE':
-            return `Bath is ready. Current temperature: ${tempStr}`;
+            return `Bath is ready.
+                    \nCurrent temperature: ${tempStr}`;
         case 'FILLING':
-            return `Bath is filling. Target ${target}°C, current ${tempStr}`;
+            return `Bath is filling.
+                \nTarget ${target}°C, current ${tempStr}`;
         
         case 'SOFT_WARNING':
             if (temp == null)
-                return `Adjusting temperature. Target ${target}°C`;
+                return `Adjusting temperature.\n
+                    Target ${target}°C`;
             return temp < target
                 ? `Temperature too low, adjusting.\n
                     Current ${tempStr}, target ${target}°C`
@@ -96,9 +99,11 @@ function convertNotification(st) {
                 Do not enter the bath!`;
         
         case 'LOST_CONNECTION':
-            return 'Connection could not be established with bath. Filling has stopped';
+            return `Connection could not be established with bath.\n
+                Filling has stopped`;
         case 'SENSOR_FAULT':
-            return `Temperature Sensor fault. Filling has stopped.\n Last known temperature: ${tempStr}`;
+            return `Temperature Sensor fault. Filling has stopped.\n
+                Last known temperature: ${tempStr}`;
         default:
             return `Bath status: ${st}`;
     }
