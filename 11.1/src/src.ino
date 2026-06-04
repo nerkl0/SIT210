@@ -144,13 +144,13 @@ static void normalPriorityTask(void *pv){
     // non-blocking read of latest temp (timeout 0). Leaves temp unchanged if queue empty
     xQueuePeek(tempQueue, &temp, 0);
 
-    BathState s = get_bath_state();
+    BathState st = get_bath_state();
 
     // Control MQTT publishes to PUBLISH_PERIOD_MS so it's not spamming the broker
     uint32_t now = millis();
     if (now - last_publish_ms >= PUBLISH_PERIOD_MS){
       last_publish_ms = now;
-      publish_status(s, temp, get_fill_progress());
+      publish_status(st, temp, get_fill_progress());
     }
 
     refreshDisplay(temp);
@@ -189,7 +189,7 @@ void setup(){
 
   // If any mutex isn't allocated sufficient space, system halts
   if (pumpMutex == NULL || i2cMutex == NULL || tempQueue == NULL){
-    Serial.println("RTOS primitive allocation failed - halting");
+    Serial.println("RTOS primitive allocation failed, halting");
     while (1) {}
   }
   // Task initialiser

@@ -150,7 +150,7 @@ void mqtt_connect(){
     if (mqtt.connect(MQTT_CLIENT, MQTT_USER, MQTT_PASS, topics.connected, 1, true, "False")){
       subscribe_all();
     } else {
-      delay(1500);
+      delay(1000);
     }
   }
 }
