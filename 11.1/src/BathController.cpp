@@ -22,29 +22,30 @@ void bathController_begin(){
   pumpController_begin();
 }
 
-// Application has requested start  
+// Below three functions handle the app publishing start/stop and silence
+// Updates flags for evaluate_state() logic
 void request_start(float target) {
   target_temp = target;
   start_requested = true;
   buzzer_is_silenced = false;  // new bath starts un-silenced
 }
-
 void request_stop() {
   stop_requested = true;
 }
-
 void request_silence() {
   buzzer_is_silenced = true;
 }
 
-bool buzzer_silenced() {
-  return buzzer_is_silenced;
-}
-
+/*
+  Calculates whether the temperature is in a healthy state. If yes, returns FILLING state. 
+  If the difference between the current temperature and the target temperature is >= MAX_TEMP_DIFF band
+  or if current temperature is greate than the maximum allowed temp (MAX_TEMPERATURE) state is set to HARD_WARNING 
+  If the temperature is <= TEMP_BAND state is set to SOFT_WARNING
+*/
 static BathState temperature_state(float temp) {
   float diff = temp - target_temp;
   if (abs(diff) > MAX_TEMP_DIFF || temp > MAX_TEMPERATURE)
-    return diff > 0 ? HARD_WARNING : SOFT_WARNING;
+    return diff > 0 ? HARD_WARNING : SOFT_WARNING; // SOFT_WARNING only for colder than temperature 
 
   if (abs(diff) >= TEMP_BAND)
     return SOFT_WARNING;
@@ -52,40 +53,49 @@ static BathState temperature_state(float temp) {
   return FILLING;
 }
 
+// The main function called for transiting through states
+// Updates state flags using current temperature, current time and current sensor state 
 BathState evaluate_state(float temp, uint32_t now, bool sensor_ok) {
+  // If stop button has been pressed, reset the fill_start counter to 0. return 
   if (stop_requested) {
     stop_requested = false;
     fill_start_ms = 0;
-    return temp >= target_temp + MAX_TEMP_DIFF ? HARD_WARNING : IDLE; ;
+    return temp >= target_temp + MAX_TEMP_DIFF ? HARD_WARNING : IDLE;
   }
-
+  
+  // Only update bath_state on start request if state is currently IDLE
   if (start_requested && bath_state == IDLE) {
     start_requested = false;
     fill_start_ms = now;
     return FILLING;
   }
-  start_requested = false;
+  start_requested = false;  // reset start_requested to default
 
+  // Early return. If bath state is IDLE, nothing after this point needs actioning
   if (bath_state == IDLE) 
     return IDLE;
 
+  // Sensor Health check
   if (!sensor_ok) {
     fill_start_ms = 0;
     return SENSOR_FAULT;
   }
-
+  
+  // If connection to app has dropped longer than the set timer, update state to LOST_CONNECTION
   if (connection_timeout(now)) 
     return LOST_CONNECTION;
 
+  // Bath has finished filling. Reset fill timer, set state to IDLE
   if ((now - fill_start_ms) >= max_fill_ms) {
     fill_start_ms = 0;
     return IDLE;
   }
 
+  // Bath still filling, normal temp monitor check 
   return temperature_state(temp);
 }
 
-// Actuator: drive pumps for a given state. No state writes.
+// Actuator: Drives the pumps related to set state
 void drive_pumps(BathState st, float curr_temp) {
   float err = curr_temp - target_temp;
   switch (st) {
@@ -95,6 +105,8 @@ void drive_pumps(BathState st, float curr_temp) {
         stop_both_pumps(); 
         break; 
       } 
+      // If too hot: stop hot pump, keep cold pump running
+      // If too cold: keep hot pump running, stop cold pump
       stop_pump(err > 0 ? HOT : COLD);
       run_pump(err > 0 ? COLD : HOT);
       break;
@@ -109,7 +121,10 @@ void drive_pumps(BathState st, float curr_temp) {
   }
 }
 
-// Getters
+// Getter Functions
+bool buzzer_silenced() {
+  return buzzer_is_silenced;
+}
 BathState get_bath_state(){ 
   return bath_state; 
 }
