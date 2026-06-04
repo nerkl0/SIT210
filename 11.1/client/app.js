@@ -315,13 +315,16 @@ function setCurrentTemp(t) {
 // Sets connection status comparing against previous status to provide a notification
 // on first transition out of a state
 function setAppConnected(connected) {
+    console.log('start disabled =', startBtn.disabled);
     const wasConnected = state.appConnected;
     state.appConnected = connected;
     appIndicator.className = indicatorClass(connected ? 'connected' : 'disconnected');
     valApp.textContent = connected ? 'Connected' : 'Disconnected';
     startBtn.disabled = !connected;
+    updateBathStatus();
     if (connected && !wasConnected)
         addNotification('Connection with bath successful');
+    console.log('start disabled =', startBtn.disabled);
 }
 
 // PROGRESS ELEMENT
