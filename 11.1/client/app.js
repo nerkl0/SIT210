@@ -23,7 +23,7 @@ const bath = {
     MAX_TEMP: 42,
     MIN_SIZE: 2,
     MAX_SIZE: 30,
-    SIZE_STEP: 3
+    SIZE_STEP: 2
 }
 
 let lastNotifiedState = null; // variable to ensure only a single notification per state is added to notifications
