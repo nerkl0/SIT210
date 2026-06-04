@@ -20,7 +20,7 @@ const silenceBtn = document.getElementById('silence-btn');
 
 const bath = {
     MIN_TEMP: 30,
-    MAX_TEMP: 41,
+    MAX_TEMP: 42,
     MIN_SIZE: 2,
     MAX_SIZE: 30,
     SIZE_STEP: 3
@@ -46,16 +46,24 @@ let state = {
     running: false,
     appConnected: false,
     bathStatus: 'IDLE',
-    topUp: false,
+    addMore: false,
     silenced: false,
     pendingStart: false,
     pendingNotif: null,
     notifications: [],
-    unreadCount: 0,
 };
 
-// Class for CSS strings to manipulate styles
-const CSS = {
+const BATH_STATUS = {
+    IDLE:{ label: 'Idle', cls: '' },
+    FILLING: { label: 'Filling', cls: 'filling' },
+    SOFT_WARNING:{ label: 'Adjusting', cls: 'warning' },
+    HARD_WARNING: { label:'Warning!', cls: 'warning' },
+    LOST_CONNECTION: { label: 'Lost Signal', cls: 'disconnected' },
+    SENSOR_FAULT:{ label: 'Sensor Fault', cls: 'warning' }
+};
+
+// STYLE strings to manipulate css properties
+const STYLE = {
     startBtn: {
         idle: 'start-btn idle',
         running: 'start-btn running',
@@ -67,14 +75,15 @@ const CSS = {
         SOFT_WARNING: 'warning',
         HARD_WARNING: 'warning',
         LOST_CONNECTION: 'disconnected',
-        SENSOR_FAULT: 'warning',
+        SENSOR_FAULT: 'warning'
     },
 };
 
 
 /*  =====  HELPER FUNCTIONS  =====  */
-// Builds a full className for the bath/app indicator from the CSS class
-const indicatorClass = (classModifier) => `${CSS.indicator} ${classModifier || ''}`.trim();
+
+// Builds a full className for the bath/app indicator from STYLE
+const indicatorClass = (classModifier) => `${STYLE.indicator} ${classModifier || ''}`.trim();
 
 //  Function expressions for state checks
 const isActive = () => state.running || state.pendingStart; // pending included so that the start button stays inactive
@@ -83,29 +92,9 @@ const isWarningState = (st) => WARNING_STATES.includes(st);
 const isFaultState = (st) => FAULT_STATES.includes(st);
 const commsError = () => addNotification(MSG_COMMS_FAIL);
 
-// Reset start button to idle (Start Bath) appearance.
-function resetStartButton() {
-    startBtn.className = CSS.startBtn.idle;
-    startBtn.textContent = 'Start Bath';
-}
 
+/*  =====  NOTIFICATIONS  =====  */
 
-/*  =====  LAYOUT FUNCTIONS  =====  */
-// Switches between Home tab and Notifications tab
-function switchTab(name, btn) {
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(`tab-${name}`).classList.add('active');
-    btn.classList.add('active');
-    
-    // on switch to notifications, reset unread count, remove indicator
-    if (name === 'notif') {
-        state.unreadCount = 0;
-        notifNew.classList.remove('visible');
-    }
-}
-
-/*  =====  NOTIFICATIONS FUNCTIONS  =====  */
 // Notifications generated for each bath state
 const NOTIF_TEMPLATES = {
     IDLE:(tmpStr) => `Bath is ready.\nCurrent temperature: ${tmpStr}`,
@@ -121,11 +110,10 @@ const NOTIF_TEMPLATES = {
     SENSOR_FAULT: (tmpStr) => `Temperature Sensor fault. Filling has stopped.\nLast known temperature: ${tmpStr}`,
 };
 
-// Creates a new notification, updates the unreadCount for the indicator on notifications tab
+// Creates a new notification, updates the indicator on notifications tab
 function addNotification(msg) {
     const n = { msg, time: new Date()};
     state.notifications.push(n);
-    state.unreadCount++;
     notifNew.classList.add('visible');
     notifEmpty.style.display = 'none';
     notifList.appendChild(createNotifElement(n));
@@ -165,7 +153,9 @@ function updateNotifications() {
 }
 
 
+
 /*  =====  MQTT HANDLING FUNCTIONS  =====  */
+
 // Parse and validate a status payload. Returns the parsed object, or null if the payload is unusable (logs reason to console).
 function parseStatusPayload(payload) {
     let data;
@@ -183,12 +173,11 @@ function parseStatusPayload(payload) {
 }
 
 /* 
-   State becomes pending after Start button is hit. The UI is held pending state (do not update progress/bath status etc) 
+   State becomes pending after Start button is hit. The UI is held in a pending state which does not update progress/bath status etc
    until the firmware responds with a state other than IDLE. Start button stays in a clicked state. 
-   If the state is running, the pending UI is cleared and updates notifications. 
-   Else it returns false
+   If the state is running, the pending UI is cleared and updates notifications, else it returns false
    Returns true if the caller decides to stop the bath within this state.
-   startTimeoutConf is configured and resolved withinw startBath()
+   startTimeoutConf is configured and resolved within uiUpdateStart()
 */
 function resolvePendingStart(st) {
     // Ignore a stale IDLE so the UI doesn't fall back to idle before filling actually begins.
@@ -207,54 +196,61 @@ function resolvePendingStart(st) {
     return false;
 }
 
-// Update the fill-progress bar from the payload, when progress is meaningful.
+// Update the fill-progress bar from the progress topic only if bath is running 
+// Ignores progress for "add more" button 
 function applyProgress(data, st) {
     const progressActive = isRunningState(st);
-    if (typeof data.progress === 'number' && !state.topUp && progressActive) {
+    if (typeof data.progress === 'number' && !state.addMore && progressActive) {
         state.progress = data.progress;
         showProgress();
     }
 }
 
-function refreshSilenceState(st, stateChanged) {
-    const warning = isWarningState(st);
-    if (stateChanged && warning) state.silenced = false;
-    if (!warning) state.silenced = false;
-}
-
-// Handle terminal fault states (sensor fault / lost connection): stop the bath,
-// reset transient state, and lock the UI. Returns true if a fault was handled.
+// Handle hard fault states (sensor fault / lost connection): stop the bath,
+// reset state and lock the UI. Returns true when the fault state is resolved
 function handleFaultState(st, notif, stateChanged) {
-    if (!isFaultState(st)) return false;
+    if (!isFaultState(st)) 
+        return false;
 
-    if (stateChanged) addNotification(notif);
+    if (stateChanged) 
+        addNotification(notif);
     state.running = false;
     state.pendingStart = false;
-    state.topUp = false;
+    state.addMore = false;
     state.progress = 0;
+    
     clearTimeout(startTimeoutConf);
     resetStartButton();
     startBtn.disabled = true;
+
     showProgress();
     updateBathStatus();
+    
     lastNotifiedState = st;
     return true;
 }
 
-// Handle the normal (non-fault) status transition: detect stop, enable the
-// start button, and emit notifications.
+// Handle for normal status transitions: detect stop, enable the start button, send notifications
+// Linked to appConnected. If appConnected is false, disable buttons else should be enabled
 function handleRunningTransition(st, notif, wasRunning, stateChanged) {
-    if (!state.running && wasRunning) {
-        stopBath(notif);
+    // Send notification on first detection of IDLE transition 
+    if (!state.running && wasRunning) { 
+        uiUpdateStop(notif);
         return;
     }
-    if (st === 'IDLE' || st === 'FILLING') startBtn.disabled = !state.appConnected;
-    if (stateChanged && st !== 'IDLE') addNotification(notif);
+
+    if (st === 'IDLE' || st === 'FILLING') 
+        startBtn.disabled = !state.appConnected;
+    
+    if (stateChanged && st !== 'IDLE') 
+        addNotification(notif);
+
     updateBathStatus();
 }
 
-// Process a single status message from the bath firmware.
-function handleStatusMessage(payload) {
+// Process the incoming message from firmware. Calls parseStatusPayload returning 
+// if data is corrupted or missing. Updates status of each component on the UI
+function processJSONMessage(payload) {
     const data = parseStatusPayload(payload);
     if (!data) return;
 
@@ -283,31 +279,117 @@ function handleStatusMessage(payload) {
     lastNotifiedState = st;
 }
 
-function handleMessage(topic, payload) {
+// Splits topics, if the payload topic is 'connected' calls setAppConnected
+// else for status calls processJSONMessage
+function routeTopics(topic, payload) {
     switch (topic) {
         case TOPICS.subscribe.connected:
             setAppConnected(payload === 'True');
             break;
         case TOPICS.subscribe.status:
-            handleStatusMessage(payload);
+            processJSONMessage(payload);
             break;
     }
 }
 
-// Listener events
+/*  =====  UI COMPONENTS  =====  */
+
+// The buzzer should only ever be silenced for any one particular state. This function 
+// resets back to default "FALSE" after the state moves out of a warning state or if there
+// is no longer any warning
+function refreshSilenceState(st, stateChanged) {
+    const warning = isWarningState(st);
+    if ((stateChanged && warning) || !warning) 
+        state.silenced = false;
+}
+
+// CURRENT TEMP ELEMENT
+// Sets current temp of the bath fixed to 1 decimal place
+function setCurrentTemp(t) {
+    if (typeof t !== 'number' || Number.isNaN(t)) 
+        return;
+    state.currentTemp = t;
+    currentTemp.textContent = `${t.toFixed(1)}°C`;
+}
+
+// Sets connection status comparing against previous status to provide a notification
+// on first transition out of a state
+function setAppConnected(connected) {
+    const wasConnected = state.appConnected;
+    state.appConnected = connected;
+    appIndicator.className = indicatorClass(connected ? 'connected' : 'disconnected');
+    valApp.textContent = connected ? 'Connected' : 'Disconnected';
+    startBtn.disabled = !connected;
+    if (connected && !wasConnected)
+        addNotification('Connection with bath successful');
+}
+
+// PROGRESS ELEMENT
+// Increments the progress bar as status is updated. Ignores if the topic is addMore
+function showProgress() {
+    if (state.addMore) {
+        progressFill.style.width = '0%';
+        progressPct.textContent = '—';
+        return;
+    }
+    const pct = Math.round(state.progress);
+    progressFill.style.width = `${pct}%`;
+    progressPct.textContent = `${pct}%`;
+}
+
+// NAVIGATION
+// Switches between Home tab and Notifications tab
+function switchTab(name, btn) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`tab-${name}`).classList.add('active');
+    btn.classList.add('active');
+    
+    // on switch to notifications, remove indicator
+    if (name === 'notif') {
+        notifNew.classList.remove('visible');
+    }
+}
+
+// BATH STATUS
+// Update UI components for bath status.
+function updateBathStatus() {
+    if (!state.appConnected) {
+        bathIndicator.className = indicatorClass('');
+        valBath.textContent = '–';
+        silenceBtn.classList.remove('visible');
+        return;
+    }
+    const { label, cls } = BATH_STATUS[state.bathStatus];
+    bathIndicator.className = indicatorClass(cls);
+    valBath.textContent = label;
+
+    // On initial hard warning, show silence button. Otherwise if clicked or not hard warning, hide button
+    const showSilence = isWarningState(state.bathStatus) && !state.silenced;
+    silenceBtn.classList.toggle('visible', showSilence);
+}
+
+
+/*  =====  LISTENER EVENTS & CORRESPONDING FUNCTIONS =====  */
+
+// Navigation between Home and Notification -> Switch tab
 document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         switchTab(btn.dataset.tab, btn);
     });
 });
 
+// Clear messages on notifications page
 document.getElementById('clear-btn').addEventListener('click', () => {
     state.notifications = [];
-    state.unreadCount = 0;
     notifNew.classList.remove('visible');
     updateNotifications();
 });
 
+// BATH SIZE
+// The next three listener events/functions handle the Bath Size element
+// Increment/Decrement the literage when the +/- button is pressed.
+// Increases/Decreases by SIZE_STEP, then refreshes UI
 document.getElementById('btn-size-up').addEventListener('click', () => {
     if (state.bathSize < bath.MAX_SIZE) {
         state.bathSize += bath.SIZE_STEP; 
@@ -320,12 +402,13 @@ document.getElementById('btn-size-down').addEventListener('click', () => {
         updateSize(); 
     }
 });
-
 function updateSize() {
     sizeDisplay.textContent = state.bathSize;
 }
 
-//     TEMPERATURE
+// TEMPERATURE
+// The next three listener events/functions handle the Bath Temperature adj element
+// Increase/Decrease by 1. 
 document.getElementById('btn-up').addEventListener('click', () => {
     if (state.targetTemp < bath.MAX_TEMP) {
         state.targetTemp++;
@@ -338,11 +421,12 @@ document.getElementById('btn-down').addEventListener('click', () => {
         updateTemp();
     }
 });
-
+// If temperature is 41, text colour changes to warning. If 42 colours of text changes to red
 function updateTemp(){
     tempDisplay.textContent = state.targetTemp;
     targetConfirm.textContent = `${state.targetTemp}°C`;
-    tempDisplay.style.color = state.targetTemp > 42 ? 'var(--danger)':'var(--accent)';
+    tempDisplay.style.color = state.targetTemp >= 42 ? 'var(--danger)' :
+                            state.targetTemp > 40  ? 'var(--warn)':'var(--accent)';
     if (state.running){
         if (mqttAdjustTemp(state.targetTemp))
             addNotification(`Adjusted target temperature to ${state.targetTemp}°C`);
@@ -351,34 +435,10 @@ function updateTemp(){
     }
 }
 
-// Shared start/stop flow for the Start and Add-water buttons.
-function requestStart(onPublished) {
-    const start_pub = mqttStartBath(state.targetTemp);
-    if (!start_pub) {
-        commsError();
-        return;
-    }
-    onPublished();
-}
-
-function requestStop(notif) {
-    if (!mqttStopBath()) commsError();
-    stopBath(notif);
-}
-
-//     START BUTTON
-startBtn.addEventListener('click', () => {
-    if (!isActive()) {
-        requestStart(() => {
-            mqttSetBathSize(state.bathSize);
-            startBath(`Commencing filling the tub. Target temp ${state.targetTemp}°C, size ${state.bathSize}L`);
-        });
-    } else {
-        requestStop('User requested bath filling to stop');
-    }
-});
-
-//     SILENCE WARNINGS
+// SILENCE WARNINGS
+// Publishes a silence request to the firmware to stop the buzzer sounding
+// The silence warning button only appears in HARD_WARNING or SENSOR_FAULT state
+// Button disappears after it's clicked. 
 silenceBtn.addEventListener('click', () => {
     if (mqttSilenceWarnings()) {
         state.silenced = true;
@@ -389,23 +449,59 @@ silenceBtn.addEventListener('click', () => {
     }
 });
 
-//     ADD MORE WATER
+// START/STOP & ADD MORE WATER BUTTON 
+// When the start button is clicked and state isn't active, flip to active
+// else flip to inactive state. Calls uiUpdateStart/Stop providing a notification for UI
+startBtn.addEventListener('click', () => {
+    if (!isActive()) {
+        requestStart(() => {
+            mqttSetBathSize(state.bathSize);
+            uiUpdateStart(`Commencing filling the tub. Target temp ${state.targetTemp}°C, size ${state.bathSize}L`);
+        });
+    } else {
+        requestStop('User requested bath filling to stop');
+    }
+});
+// Add More Water sets bath size effectively to unlimited. User needs to control start/stop.
 addWaterBtn.addEventListener('click', () => {
     if (!isActive()) {
         requestStart(() => {
             mqttSetBathSize(9999);
-            state.topUp = true;
-            startBath(`Topping up the bath. Target temp ${state.targetTemp}°C`);
+            state.addMore = true;
+            uiUpdateStart(`Adding more water to the bath.\nTarget temp ${state.targetTemp}°C`);
         });
     } else {
         requestStop('User stopped adding water');
     }
 });
-
-export function startBath(notif){
+// Shared start/stop flow for the Start and Add-water buttons.
+function requestStart(onPublished) {
+    const start_pub = mqttStartBath(state.targetTemp);
+    if (!start_pub) {
+        commsError();
+        return;
+    }
+    onPublished();
+}
+function requestStop(notif) {
+    if (!mqttStopBath()) 
+        commsError();
+    uiUpdateStop(notif);
+}
+// Reset start button to idle (Start Bath) appearance.
+function resetStartButton() {
+    startBtn.className = STYLE.startBtn.idle;
+    startBtn.textContent = 'Start Bath';
+}
+// Updates UI components to reflect the bath state for stop and start
+// Configures the timeout for response from the firmware after click.
+// On initial click, UI state flips to pending which keeps the start button pressed
+// but doesn't yet update status components. If a response is not received from 
+// the firmware state reverts to default settings and notification sent
+function uiUpdateStart(notif){
     state.pendingStart = true;
     state.pendingNotif = notif;
-    startBtn.className = CSS.startBtn.running;
+    startBtn.className = STYLE.startBtn.running;
     startBtn.textContent = 'Stop Bath';
 
     // Revert if the firmware never confirms filling.
@@ -414,75 +510,32 @@ export function startBath(notif){
         if (!state.pendingStart) return;
         state.pendingStart = false;
         state.pendingNotif = null;
-        state.topUp = false;
+        state.addMore = false;
         resetStartButton();
         addNotification('No response from Bath, please check connection and try again');
     }, START_CONFIRM_TIMEOUT);
 }
-
-export function stopBath(notif) {
+function uiUpdateStop(notif) {
     clearTimeout(startTimeoutConf);
+
     state.running = false;
-    state.topUp = false;
+    state.addMore = false;
     state.silenced = false;
     state.pendingStart = false;
     state.pendingNotif = null;
     state.bathStatus = 'IDLE';
     state.progress = 0;
     lastNotifiedState = 'IDLE';
+
     resetStartButton();
     addNotification(notif);
     updateBathStatus();
     showProgress();
 }
 
-//    BATH STATUS
-export function updateBathStatus() {
-    if (!state.appConnected) {
-        bathIndicator.className = indicatorClass('');
-        valBath.textContent = '–';
-        silenceBtn.classList.remove('visible');
-        return;
-    }
-    const s = state.bathStatus;
-    const label = { IDLE: 'Idle', FILLING: 'Filling', SOFT_WARNING: 'Adjusting', HARD_WARNING: 'Warning!', LOST_CONNECTION: 'Lost Signal', SENSOR_FAULT: 'Sensor Fault' };
-    bathIndicator.className = indicatorClass(CSS.indicatorState[s]);
-    valBath.textContent = label[s];
-    
-    const showSilence = (s === 'HARD_WARNING' || s === 'SENSOR_FAULT') && !state.silenced;
-    silenceBtn.classList.toggle('visible', showSilence);
-}
 
-//   APP CONNECTION STATUS  
-export function setAppConnected(connected) {
-    const wasConnected = state.appConnected;
-    state.appConnected = connected;
-    appIndicator.className = indicatorClass(connected ? 'connected' : 'disconnected');
-    valApp.textContent = connected ? 'Connected' : 'Disconnected';
-    startBtn.disabled = !connected;
-    if (connected && !wasConnected)
-        addNotification('Connection with bath successful');
-}
 
-//   PROGRESS  
-export function showProgress() {
-    if (state.topUp) {
-        progressFill.style.width = '0%';
-        progressPct.textContent = '—';
-        return;
-    }
-    const pct = Math.round(state.progress);
-    progressFill.style.width = `${pct}%`;
-    progressPct.textContent = `${pct}%`;
-}
-
-export function setCurrentTemp(t) {
-    if (typeof t !== 'number' || Number.isNaN(t)) return;
-    state.currentTemp = t;
-    currentTemp.textContent = `${t.toFixed(1)}°C`;
-}
-
-// Render once on load
+// Render each once on load
 updateBathStatus();
 updateTemp();
 showProgress();
@@ -490,5 +543,5 @@ updateNotifications();
 mqttConnect({
     onConnect: () => setAppConnected(true),
     onDisconnect: () => setAppConnected(false),
-    onMessage: handleMessage,
+    onMessage: routeTopics,
 });
